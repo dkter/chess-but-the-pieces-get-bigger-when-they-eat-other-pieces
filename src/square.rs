@@ -53,7 +53,6 @@ fn select_square(
                 if let Ok((_piece_entity, mut piece)) = pieces_query.get_mut(selected_piece_entity)
                 {
                 	if piece.is_move_valid((square.x, square.y), pieces_vec) {
-	                    piece.transform.translation = Vec3::new(square.x as f32, 0., square.y as f32) - piece.offset;
 
                         // Check if a piece of the opposite color exists in this square and despawn it
                         for (other_entity, other_piece) in pieces_entity_vec {
@@ -67,6 +66,7 @@ fn select_square(
                                 piece.consume_piece(other_piece.x, other_piece.y);
                             }
                         }
+	                    piece.transform.translation = Vec3::new(square.x as f32, 0., square.y as f32) + piece.offset;
 
                         // move piece
 	                    piece.x = square.x;

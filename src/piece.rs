@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_mod_picking::picking_core::Pickable;
 use core::f32::consts::PI;
+use std::collections::HashSet;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceColour {
@@ -26,7 +27,7 @@ pub struct Piece {
     pub y: u8,
     pub transform: Transform,
     pub offset: Vec3,
-    pub squares_occupied: Vec<(i8, i8)>,
+    pub squares_occupied: HashSet<(i8, i8)>,
 }
 
 fn piece_colour_on_square(pos: (u8, u8), pieces: &Vec<Piece>) -> Option<PieceColour> {
@@ -224,7 +225,6 @@ impl Piece {
                 break;
             }
         }
-        println!("{:?}", is_symmetric);
         if is_symmetric {
             self.transform.rotation = Quat::IDENTITY;
 
@@ -257,10 +257,20 @@ impl Piece {
                 if (*y as f32) - self.offset.z == self.offset.x - (*x as f32) && (*y as f32) > max_y {
                     max_y = *y as f32;
                 }
+
+                // the above approach doesn't work when x and y aren't a multiple of 1
+                // pick a point 0.5x0.5 away and try that i guess
+
+                // if (*y as f32) - self.offset.z - 0.5 == (*x as f32) - self.offset.x + 0.5 && (*x as f32) > max_x {
+                //     max_x = *x as f32;
+                // }
+                // if (*y as f32) - self.offset.z - 0.5 == self.offset.x - (*x as f32) + 0.5 && (*y as f32) > max_y {
+                //     max_y = *y as f32;
+                // }
             }
 
-            self.transform.scale.x = (max_x - self.offset.x + 1.0) * 1.414;
-            self.transform.scale.z = (max_y - self.offset.z + 1.0) * 1.414;
+            self.transform.scale.x = (max_x - self.offset.x + 0.5) * 2.0 * 1.414;
+            self.transform.scale.z = (max_y - self.offset.z + 0.5) * 2.0 * 1.414;
         }
     }
 
@@ -268,20 +278,40 @@ impl Piece {
         if x as i8 - self.x as i8 == y as i8 - self.y as i8 {
             // diagonal capture
             if x < self.x {
-                self.squares_occupied.push((1, 1));
+                for (x, y) in self.squares_occupied.clone() {
+                    self.squares_occupied.insert((x + 1, y + 1));
+                }
             } else {
-                self.squares_occupied.push((-1, -1));
+                for (x, y) in self.squares_occupied.clone() {
+                    self.squares_occupied.insert((x - 1, y - 1));
+                }
             }
         } else if x as i8 - self.x as i8 == self.y as i8 - y as i8 {
             // diagonal capture (the other way)
             if x < self.x {
-                self.squares_occupied.push((1, -1));
+                for (x, y) in self.squares_occupied.clone() {
+                    self.squares_occupied.insert((x + 1, y - 1));
+                }
             } else {
-                self.squares_occupied.push((-1, 1));
+                for (x, y) in self.squares_occupied.clone() {
+                    self.squares_occupied.insert((x - 1, y + 1));
+                }
             }
         }
+        // if there are any gaps they should be filled
+        for (x, y) in self.squares_occupied.clone() {
+            if
+                !self.squares_occupied.contains(&(x + 1, y))
+                && self.squares_occupied.contains(&(x + 2, y))
+                && self.squares_occupied.contains(&(x + 1, y + 1))
+                && self.squares_occupied.contains(&(x + 1, y - 1))
+            {
+                self.squares_occupied.insert((x + 1, y));
+            }
+        }
+
         self.update_transform();
-        self.transform.translation += self.offset;
+        //self.transform.translation += self.offset;
     }
 }
 
@@ -326,7 +356,7 @@ fn spawn_piece(
             colour, piece_type, x, y,
             transform: Transform::from_translation(Vec3::new(x as f32, 0.0, y as f32)),
             offset: Vec3::ZERO,
-            squares_occupied: vec![(0, 0)],
+            squares_occupied: HashSet::from([(0, 0)]),
         },
         Pickable::IGNORE,
     )).with_children(|parent| {
