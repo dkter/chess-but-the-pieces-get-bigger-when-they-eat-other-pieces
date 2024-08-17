@@ -196,38 +196,92 @@ impl Piece {
         }
     }
 
+    pub fn update_transform(&mut self) {
+        // set offset to the centre of squares_occupied
+        self.offset = Vec3::ZERO;
+        for (x, y) in &self.squares_occupied {
+            self.offset.x += *x as f32;
+            self.offset.z += *y as f32;
+        }
+        self.offset.x /= self.squares_occupied.len() as f32;
+        self.offset.z /= self.squares_occupied.len() as f32;
+
+        // if squares_occupied is symmetric around offset, rotation = 0
+        // else rotation = -pi/4
+        let mut is_symmetric = true;
+        for (x, y) in &self.squares_occupied {
+            is_symmetric = false;
+            for (x2, y2) in &self.squares_occupied {
+                if (*x as f32 - self.offset.x == self.offset.x - *x2 as f32 && *y as f32 == *y2 as f32)
+                    || (*y as f32 - self.offset.z == self.offset.z - *y2 as f32 && *x as f32 == *x2 as f32) {
+                        // println!("{}, {}, {}, {} {} {}", *x as f32, self.offset.x, *x2 as f32,
+                        //                 *y as f32, self.offset.z, *y2 as f32);
+                    is_symmetric = true;
+                    break;
+                }
+            }
+            if !is_symmetric {
+                break;
+            }
+        }
+        println!("{:?}", is_symmetric);
+        if is_symmetric {
+            self.transform.rotation = Quat::IDENTITY;
+
+            // transform.scale.x = 2 * length from centre in direction of rotation
+            // transform.scale.z = 2 * length from centre perp. to direction of rotation
+            let mut max_x = self.offset.x;
+            let mut max_y = self.offset.z;
+            for (x, y) in &self.squares_occupied {
+                if (*y as f32) == self.offset.z && (*x as f32) > max_x {
+                    max_x = *x as f32;
+                }
+                if (*x as f32) == self.offset.x && (*y as f32) > max_y {
+                    max_y = *y as f32;
+                }
+            }
+
+            self.transform.scale.x = max_x - self.offset.x + 1.0;
+            self.transform.scale.z = max_y - self.offset.z + 1.0;
+        } else {
+            self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+
+            // transform.scale.x = 2 * length from centre in direction of rotation
+            // transform.scale.z = 2 * length from centre perp. to direction of rotation
+            let mut max_x = self.offset.x;
+            let mut max_y = self.offset.z;
+            for (x, y) in &self.squares_occupied {
+                if (*y as f32) - self.offset.z == (*x as f32) - self.offset.x && (*x as f32) > max_x {
+                    max_x = *x as f32;
+                }
+                if (*y as f32) - self.offset.z == self.offset.x - (*x as f32) && (*y as f32) > max_y {
+                    max_y = *y as f32;
+                }
+            }
+
+            self.transform.scale.x = (max_x - self.offset.x + 1.0) * 1.414;
+            self.transform.scale.z = (max_y - self.offset.z + 1.0) * 1.414;
+        }
+    }
+
     pub fn consume_piece(&mut self, x: u8, y: u8) {
         if x as i8 - self.x as i8 == y as i8 - self.y as i8 {
             // diagonal capture
             if x < self.x {
-                self.transform.scale.x *= 2.828; // 2sqrt2
-                self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
-                self.transform.translation += Vec3::new(0.5, 0.0, 0.5);
-                self.offset += Vec3::new(0.5, 0.0, 0.5);
                 self.squares_occupied.push((1, 1));
             } else {
-                self.transform.scale.x *= 2.828;
-                self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
-                self.transform.translation += Vec3::new(-0.5, 0.0, -0.5);
-                self.offset += Vec3::new(0.5, 0.0, 0.5);
                 self.squares_occupied.push((-1, -1));
             }
         } else if x as i8 - self.x as i8 == self.y as i8 - y as i8 {
             // diagonal capture (the other way)
             if x < self.x {
-                self.transform.scale.z *= 2.828;
-                self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
-                self.transform.translation += Vec3::new(0.5, 0.0, -0.5);
-                self.offset += Vec3::new(0.5, 0.0, -0.5);
                 self.squares_occupied.push((1, -1));
             } else {
-                self.transform.scale.z *= 2.828;
-                self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
-                self.transform.translation += Vec3::new(-0.5, 0.0, 0.5);
-                self.offset += Vec3::new(-0.5, 0.0, 0.5);
                 self.squares_occupied.push((-1, 1));
             }
         }
+        self.update_transform();
+        self.transform.translation += self.offset;
     }
 }
 
