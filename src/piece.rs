@@ -241,8 +241,9 @@ impl Piece {
                 }
             }
 
-            self.transform.scale.x = max_x - self.offset.x + 1.0;
-            self.transform.scale.z = max_y - self.offset.z + 1.0;
+            self.transform.scale.x = (max_x - self.offset.x + 0.5) * 2.0;
+            self.transform.scale.z = (max_y - self.offset.z + 0.5) * 2.0;
+            self.transform.scale.y *= 1.414;
         } else {
             self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
 
@@ -251,26 +252,25 @@ impl Piece {
             let mut max_x = self.offset.x;
             let mut max_y = self.offset.z;
             for (x, y) in &self.squares_occupied {
+                // go up and to the right
                 if (*y as f32) - self.offset.z == (*x as f32) - self.offset.x && (*x as f32) > max_x {
                     max_x = *x as f32;
+                    if self.squares_occupied.contains(&(*x, y + 1)) {
+                        max_x += 0.5;
+                    }
                 }
+                // go down and to the right
                 if (*y as f32) - self.offset.z == self.offset.x - (*x as f32) && (*y as f32) > max_y {
                     max_y = *y as f32;
+                    if self.squares_occupied.contains(&(x + 1, *y)) {
+                        max_y += 0.5;
+                    }
                 }
-
-                // the above approach doesn't work when x and y aren't a multiple of 1
-                // pick a point 0.5x0.5 away and try that i guess
-
-                // if (*y as f32) - self.offset.z - 0.5 == (*x as f32) - self.offset.x + 0.5 && (*x as f32) > max_x {
-                //     max_x = *x as f32;
-                // }
-                // if (*y as f32) - self.offset.z - 0.5 == self.offset.x - (*x as f32) + 0.5 && (*y as f32) > max_y {
-                //     max_y = *y as f32;
-                // }
             }
 
             self.transform.scale.x = (max_x - self.offset.x + 0.5) * 2.0 * 1.414;
             self.transform.scale.z = (max_y - self.offset.z + 0.5) * 2.0 * 1.414;
+            self.transform.scale.y *= 1.414;
         }
     }
 
