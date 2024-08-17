@@ -25,6 +25,7 @@ impl Square {
 }
 
 fn select_square(
+    mut commands: Commands,
     mut selected_square: ResMut<SelectedSquare>,
     mut selected_piece: ResMut<SelectedPiece>,
     mut click_event: EventReader<Pointer<Click>>,
@@ -37,12 +38,33 @@ fn select_square(
             selected_square.entity = Some(square_entity);
 
             if let Some(selected_piece_entity) = selected_piece.entity {
+            	let pieces_entity_vec: Vec<(Entity, Piece)> = pieces_query
+                    .iter_mut()
+                    .map(|(entity, piece)| {
+                        (
+                            entity,
+                            *piece,
+                        )
+                    })
+                    .collect();
             	let pieces_vec = pieces_query.iter_mut().map(|(_, piece)| *piece).collect();
 
                 // Move the selected piece to the selected square
                 if let Ok((_piece_entity, mut piece)) = pieces_query.get_mut(selected_piece_entity)
                 {
                 	if piece.is_move_valid((square.x, square.y), pieces_vec) {
+                        // Check if a piece of the opposite color exists in this square and despawn it
+                        for (other_entity, other_piece) in pieces_entity_vec {
+                            if other_piece.x == square.x
+                                && other_piece.y == square.y
+                                && other_piece.colour != piece.colour
+                            {
+                                // Despawn piece
+                                commands.entity(other_entity).despawn_recursive();
+                            }
+                        }
+
+                        // move piece
 	                    piece.x = square.x;
 	                    piece.y = square.y;
 	                }
