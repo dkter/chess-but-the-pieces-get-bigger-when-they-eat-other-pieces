@@ -19,7 +19,7 @@ pub enum PieceType {
     Pawn,
 }
 
-#[derive(Clone, Component)]
+#[derive(Clone, Component, PartialEq)]
 pub struct Piece {
     pub colour: PieceColour,
     pub piece_type: PieceType,
@@ -32,8 +32,25 @@ pub struct Piece {
 
 fn piece_colour_on_square(pos: (u8, u8), pieces: &Vec<Piece>) -> Option<PieceColour> {
     for piece in pieces {
-        if piece.x == pos.0 && piece.y == pos.1 {
-            return Some(piece.colour);
+        for (dx, dy) in &piece.squares_occupied {
+            let x = piece.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
+            let y = piece.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
+            if x == pos.0 && y == pos.1 {
+                return Some(piece.colour);
+            }
+        }
+    }
+    None
+}
+
+fn piece_on_square(pos: (u8, u8), pieces: &Vec<Piece>) -> Option<&Piece> {
+    for piece in pieces {
+        for (dx, dy) in &piece.squares_occupied {
+            let x = piece.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
+            let y = piece.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
+            if x == pos.0 && y == pos.1 {
+                return Some(&piece);
+            }
         }
     }
     None
@@ -43,22 +60,30 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
     // Same column
     if begin.0 == end.0 {
         for piece in pieces {
-            if piece.x == begin.0
-                && ((piece.y > begin.1 && piece.y < end.1)
-                    || (piece.y > end.1 && piece.y < begin.1))
-            {
-                return false;
+            for (dx, dy) in &piece.squares_occupied {
+                let x = piece.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
+                let y = piece.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
+                if x == begin.0
+                    && ((y > begin.1 && y < end.1)
+                        || (y > end.1 && y < begin.1))
+                {
+                    return false;
+                }
             }
         }
     }
     // Same row
     if begin.1 == end.1 {
         for piece in pieces {
-            if piece.y == begin.1
-                && ((piece.x > begin.0 && piece.x < end.0)
-                    || (piece.x > end.0 && piece.x < begin.0))
-            {
-                return false;
+            for (dx, dy) in &piece.squares_occupied {
+                let x = piece.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
+                let y = piece.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
+                if y == begin.1
+                    && ((x > begin.0 && x < end.0)
+                        || (x > end.0 && x < begin.0))
+                {
+                    return false;
+                }
             }
         }
     }
@@ -95,106 +120,139 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
 impl Piece {
     /// Returns the possible_positions that are available
     pub fn is_move_valid(&self, new_position: (u8, u8), pieces: Vec<Piece>) -> bool {
-        // If there's a piece of the same color in the same square, it can't move
-        if piece_colour_on_square(new_position, &pieces) == Some(self.colour) {
-            return false;
-        }
+        for (dx, dy) in &self.squares_occupied {
+            let x = self.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
+            let y = self.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
+            let Some(new_x) = new_position.0.checked_add_signed(*dx) else {
+                return false;
+            };
+            let Some(new_y) = new_position.1.checked_add_signed(*dy) else {
+                return false;
+            };
 
-        match self.piece_type {
-            PieceType::King => {
-                // Horizontal
-                ((self.x as i8 - new_position.0 as i8).abs() == 1
-                    && (self.y == new_position.1))
-                // Vertical
-                || ((self.y as i8 - new_position.1 as i8).abs() == 1
-                    && (self.x == new_position.0))
-                // Diagonal
-                || ((self.x as i8 - new_position.0 as i8).abs() == 1
-                    && (self.y as i8 - new_position.1 as i8).abs() == 1)
+            // If there's a piece of the same color in the same square, it can't move
+            // (unless it's the current piece)
+            if let Some(piece) = piece_on_square((new_x, new_y), &pieces) {
+                if piece != self && piece.colour == self.colour {
+                    return false;
+                }
             }
-            PieceType::Queen => {
-                is_path_empty((self.x, self.y), new_position, &pieces)
-                    && ((self.x as i8 - new_position.0 as i8).abs()
-                        == (self.y as i8 - new_position.1 as i8).abs()
-                        || ((self.x == new_position.0 && self.y != new_position.1)
-                            || (self.y == new_position.1 && self.x != new_position.0)))
-            }
-            PieceType::Bishop => {
-                is_path_empty((self.x, self.y), new_position, &pieces)
-                    && (self.x as i8 - new_position.0 as i8).abs()
-                        == (self.y as i8 - new_position.1 as i8).abs()
-            }
-            PieceType::Knight => {
-                ((self.x as i8 - new_position.0 as i8).abs() == 2
-                    && (self.y as i8 - new_position.1 as i8).abs() == 1)
-                    || ((self.x as i8 - new_position.0 as i8).abs() == 1
-                        && (self.y as i8 - new_position.1 as i8).abs() == 2)
-            }
-            PieceType::Rook => {
-                is_path_empty((self.x, self.y), new_position, &pieces)
-                    && ((self.x == new_position.0 && self.y != new_position.1)
-                        || (self.y == new_position.1 && self.x != new_position.0))
-            }
-            PieceType::Pawn => {
-                if self.colour == PieceColour::White {
-                    // Normal move
-                    if new_position.1 as i8 - self.y as i8 == 1 && (self.x == new_position.0) {
-                        if piece_colour_on_square(new_position, &pieces).is_none() {
-                            return true;
-                        }
-                    }
 
-                    // Move 2 squares
-                    if self.y == 1
-                        && new_position.1 as i8 - self.y as i8 == 2
-                        && (self.x == new_position.0)
-                        && is_path_empty((self.x, self.y), new_position, &pieces)
-                    {
-                        if piece_colour_on_square(new_position, &pieces).is_none() {
-                            return true;
-                        }
+            match self.piece_type {
+                PieceType::King => {
+                    let result = 
+                        // Horizontal
+                        ((x as i8 - new_x as i8).abs() == 1
+                            && (y == new_y))
+                        // Vertical
+                        || ((y as i8 - new_y as i8).abs() == 1
+                            && (x == new_x))
+                        // Diagonal
+                        || ((x as i8 - new_x as i8).abs() == 1
+                            && (y as i8 - new_y as i8).abs() == 1);
+                    if result == false {
+                        return false;
                     }
-
-                    // Take piece
-                    if new_position.1 as i8 - self.y as i8 == 1
-                        && (self.x as i8 - new_position.0 as i8).abs() == 1
-                    {
-                        if piece_colour_on_square(new_position, &pieces) == Some(PieceColour::Black) {
-                            return true;
-                        }
+                }
+                PieceType::Queen => {
+                    let result = is_path_empty((x, y), (new_x, new_y), &pieces)
+                        && ((x as i8 - new_x as i8).abs()
+                            == (y as i8 - new_y as i8).abs()
+                            || ((x == new_x && y != new_y)
+                                || (y == new_y && x != new_x)));
+                    if result == false {
+                        return false;
                     }
-                } else {
-                    // Normal move
-                    if new_position.1 as i8 - self.y as i8 == -1 && (self.x == new_position.0) {
-                        if piece_colour_on_square(new_position, &pieces).is_none() {
-                            return true;
-                        }
+                }
+                PieceType::Bishop => {
+                    let result = is_path_empty((x, y), (new_x, new_y), &pieces)
+                        && (x as i8 - new_x as i8).abs()
+                            == (y as i8 - new_y as i8).abs();
+                    if result == false {
+                        return false;
                     }
-
-                    // Move 2 squares
-                    if self.y == 6
-                        && new_position.1 as i8 - self.y as i8 == -2
-                        && (self.x == new_position.0)
-                        && is_path_empty((self.x, self.y), new_position, &pieces)
-                    {
-                        if piece_colour_on_square(new_position, &pieces).is_none() {
-                            return true;
-                        }
+                }
+                PieceType::Knight => {
+                    let result = ((x as i8 - new_x as i8).abs() == 2
+                        && (y as i8 - new_y as i8).abs() == 1)
+                        || ((x as i8 - new_x as i8).abs() == 1
+                            && (y as i8 - new_y as i8).abs() == 2);
+                    if result == false {
+                        return false;
                     }
-
-                    // Take piece
-                    if new_position.1 as i8 - self.y as i8 == -1
-                        && (self.x as i8 - new_position.0 as i8).abs() == 1
-                    {
-                        if piece_colour_on_square(new_position, &pieces) == Some(PieceColour::White) {
-                            return true;
+                }
+                PieceType::Rook => {
+                    let result = is_path_empty((x, y), (new_x, new_y), &pieces)
+                        && ((x == new_x && y != new_y)
+                            || (y == new_y && x != new_x));
+                    if result == false {
+                        return false;
+                    }
+                }
+                PieceType::Pawn => {
+                    if self.colour == PieceColour::White {
+                        // Normal move
+                        if new_y as i8 - y as i8 == 1 && (x == new_x) {
+                            if piece_colour_on_square((new_x, new_y), &pieces).is_some() {
+                                return false;
+                            }
+                        }
+                        // Move 2 squares
+                        else if y == 1
+                            && new_y as i8 - y as i8 == 2
+                            && (x == new_x)
+                            && is_path_empty((x, y), (new_x, new_y), &pieces)
+                        {
+                            if piece_colour_on_square((new_x, new_y), &pieces).is_some() {
+                                return false;
+                            }
+                        }
+                        // Take piece
+                        else if new_y as i8 - y as i8 == 1
+                            && (x as i8 - new_x as i8).abs() == 1
+                        {
+                            // if piece_colour_on_square((new_x, new_y), &pieces) == Some(PieceColour::White) {
+                            //     return false;
+                            // }
+                        }
+                        else {
+                            // Illegal move
+                            return false;
+                        }
+                    } else {
+                        // Normal move
+                        if new_y as i8 - y as i8 == -1 && (x == new_x) {
+                            if piece_colour_on_square((new_x, new_y), &pieces).is_some() {
+                                return false;
+                            }
+                        }
+                        // Move 2 squares
+                        else if y == 6
+                            && new_y as i8 - y as i8 == -2
+                            && (x == new_x)
+                            && is_path_empty((x, y), (new_x, new_y), &pieces)
+                        {
+                            if piece_colour_on_square((new_x, new_y), &pieces).is_some() {
+                                return false;
+                            }
+                        }
+                        // Take piece
+                        else if new_y as i8 - y as i8 == -1
+                            && (x as i8 - new_x as i8).abs() == 1
+                        {
+                            // if piece_colour_on_square((new_x, new_y), &pieces) == Some(PieceColour::Black) {
+                            //     return false;
+                            // }
+                        }
+                        else {
+                            // Illegal move
+                            return false;
                         }
                     }
                 }
-
-                false
-            }
+            };
         }
+        true
     }
 
     pub fn update_transform(&mut self) {
