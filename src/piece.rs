@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_mod_picking::picking_core::Pickable;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceColour {
@@ -218,13 +219,17 @@ fn spawn_piece(
             ..Default::default()
         },
         Piece { colour, piece_type, x, y },
+        Pickable::IGNORE,
     )).with_children(|parent| {
-        parent.spawn(PbrBundle {
-            mesh,
-            material,
-            transform: piece_transform,
-            ..Default::default()
-        });
+        parent.spawn((
+            PbrBundle {
+                mesh,
+                material,
+                transform: piece_transform,
+                ..Default::default()
+            },
+            Pickable::IGNORE,
+        ));
     });
 }
 
