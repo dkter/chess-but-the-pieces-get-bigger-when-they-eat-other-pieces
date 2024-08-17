@@ -93,11 +93,13 @@ fn select_square(
             } else {
                 // Select the piece in the currently selected square
                 for (piece_entity, piece) in pieces_query.iter_mut() {
-                    if piece.x == square.x && piece.y == square.y && piece.colour == turn.0 {
-                        // piece_entity is now the entity in the same square
-                        selected_piece.entity = Some(piece_entity);
-                        break;
-                    }
+					for (dx, dy) in &piece.squares_occupied {
+	                    if piece.x as i8 + dx == square.x as i8 && piece.y as i8 + dy == square.y as i8 && piece.colour == turn.0 {
+	                        // piece_entity is now the entity in the same square
+	                        selected_piece.entity = Some(piece_entity);
+	                        break;
+	                    }
+	                }
                 }
             }
         }
