@@ -25,6 +25,7 @@ pub struct Piece {
     pub x: u8,
     pub y: u8,
     pub transform: Transform,
+    pub offset: Vec3,
     pub squares_occupied: Vec<(i8, i8)>,
 }
 
@@ -202,11 +203,13 @@ impl Piece {
                 self.transform.scale.x *= 2.828; // 2sqrt2
                 self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
                 self.transform.translation += Vec3::new(0.5, 0.0, 0.5);
+                self.offset += Vec3::new(0.5, 0.0, 0.5);
                 self.squares_occupied.push((1, 1));
             } else {
                 self.transform.scale.x *= 2.828;
                 self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
                 self.transform.translation += Vec3::new(-0.5, 0.0, -0.5);
+                self.offset += Vec3::new(0.5, 0.0, 0.5);
                 self.squares_occupied.push((-1, -1));
             }
         } else if x as i8 - self.x as i8 == self.y as i8 - y as i8 {
@@ -215,11 +218,13 @@ impl Piece {
                 self.transform.scale.z *= 2.828;
                 self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
                 self.transform.translation += Vec3::new(0.5, 0.0, -0.5);
+                self.offset += Vec3::new(0.5, 0.0, -0.5);
                 self.squares_occupied.push((1, -1));
             } else {
                 self.transform.scale.z *= 2.828;
                 self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
                 self.transform.translation += Vec3::new(-0.5, 0.0, 0.5);
+                self.offset += Vec3::new(-0.5, 0.0, 0.5);
                 self.squares_occupied.push((-1, 1));
             }
         }
@@ -266,6 +271,7 @@ fn spawn_piece(
         Piece {
             colour, piece_type, x, y,
             transform: Transform::from_translation(Vec3::new(x as f32, 0.0, y as f32)),
+            offset: Vec3::ZERO,
             squares_occupied: vec![(0, 0)],
         },
         Pickable::IGNORE,
