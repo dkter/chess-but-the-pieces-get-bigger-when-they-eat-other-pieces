@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
-use crate::piece::Piece;
+use crate::piece::{Piece, PieceColour};
 
 #[derive(Default, Resource)]
 pub struct SelectedSquare {
@@ -18,6 +18,14 @@ pub struct Square {
     pub y: u8,
 }
 
+#[derive(Resource)]
+struct PlayerTurn(PieceColour);
+impl Default for PlayerTurn {
+    fn default() -> Self {
+        Self(PieceColour::White)
+    }
+}
+
 impl Square {
     fn is_white(&self) -> bool {
         (self.x + self.y + 1) % 2 == 0
@@ -29,6 +37,7 @@ fn select_square(
     mut selected_square: ResMut<SelectedSquare>,
     mut selected_piece: ResMut<SelectedPiece>,
     mut click_event: EventReader<Pointer<Click>>,
+    mut turn: ResMut<PlayerTurn>,
     squares_query: Query<(Entity, &Square)>,
     mut pieces_query: Query<(Entity, &mut Piece)>,
 ) {
@@ -71,6 +80,12 @@ fn select_square(
                         // move piece
 	                    piece.x = square.x;
 	                    piece.y = square.y;
+
+	                    // switch turns
+	                    turn.0 = match turn.0 {
+                            PieceColour::White => PieceColour::Black,
+                            PieceColour::Black => PieceColour::White,
+                        }
 	                }
                 }
                 selected_square.entity = None;
@@ -78,7 +93,7 @@ fn select_square(
             } else {
                 // Select the piece in the currently selected square
                 for (piece_entity, piece) in pieces_query.iter_mut() {
-                    if piece.x == square.x && piece.y == square.y {
+                    if piece.x == square.x && piece.y == square.y && piece.colour == turn.0 {
                         // piece_entity is now the entity in the same square
                         selected_piece.entity = Some(piece_entity);
                         break;
@@ -154,6 +169,7 @@ pub struct SquaresPlugin;
 impl Plugin for SquaresPlugin {
     fn build(&self, app: &mut App) {
         app
+            .insert_resource(PlayerTurn::default())
             .add_systems(Startup, setup_squares)
             .add_systems(Update, (select_square, highlight_assoc_squares));
     }
