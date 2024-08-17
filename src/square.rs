@@ -66,10 +66,29 @@ fn select_square(
                                 commands.entity(other_entity).despawn_recursive();
 
                                 // grow current piece
-                                piece.transform.scale.x *= 2.0;
-                                piece.transform.scale.z *= 1.5;
-                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
-                                piece.transform.translation -= Vec3::new(0.5, 0.0, 0.5);
+                                if other_piece.x as i8 - piece.x as i8 == other_piece.y as i8 - piece.y as i8 {
+                                	// diagonal capture
+                                	if other_piece.x < piece.x {
+		                                piece.transform.scale.x *= 2.0;
+		                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+		                                piece.transform.translation += Vec3::new(0.5, 0.0, 0.5);
+		                            } else {
+		                                piece.transform.scale.x *= 2.0;
+		                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+		                                piece.transform.translation += Vec3::new(-0.5, 0.0, -0.5);
+		                            }
+	                            } else if other_piece.x as i8 - piece.x as i8 == piece.y as i8 - other_piece.y as i8 {
+                                	// diagonal capture (the other way)
+                                	if other_piece.x < piece.x {
+		                                piece.transform.scale.z *= 2.0;
+		                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+		                                piece.transform.translation += Vec3::new(0.5, 0.0, -0.5);
+		                            } else {
+		                                piece.transform.scale.z *= 2.0;
+		                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+		                                piece.transform.translation += Vec3::new(-0.5, 0.0, 0.5);
+		                            }
+	                            }
                             }
                         }
 
