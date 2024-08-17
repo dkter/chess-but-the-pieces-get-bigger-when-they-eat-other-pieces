@@ -23,6 +23,7 @@ pub struct Piece {
     pub piece_type: PieceType,
     pub x: u8,
     pub y: u8,
+    pub transform: Transform,
 }
 
 fn piece_colour_on_square(pos: (u8, u8), pieces: &Vec<Piece>) -> Option<PieceColour> {
@@ -195,10 +196,22 @@ impl Piece {
 
 fn move_pieces(time: Res<Time>, mut query: Query<(&mut Transform, &Piece)>) {
     for (mut transform, piece) in query.iter_mut() {
-        let direction = Vec3::new(piece.x as f32, 0., piece.y as f32) - transform.translation;
+        let direction = piece.transform.translation - transform.translation;
+        let scale_diff = piece.transform.scale - transform.scale;
         if direction.length() > 0.01 {
             transform.translation += direction.normalize() * time.delta_seconds() * 2.0;
         }
+        if scale_diff.length() > 0.01 {
+            transform.scale += scale_diff.normalize() * time.delta_seconds() * 2.0;
+        }
+    }
+}
+
+fn transform_pieces(mut query: Query<(&mut Transform, &Piece)>) {
+    for (mut transform, piece) in query.iter_mut() {
+        //transform.scale = piece.transform.scale;
+        transform.rotation = piece.transform.rotation;
+        //transform.translation = piece.transform.translation;
     }
 }
 
@@ -218,7 +231,7 @@ fn spawn_piece(
             transform: Transform::from_translation(Vec3::new(x as f32, 0.0, y as f32)),
             ..Default::default()
         },
-        Piece { colour, piece_type, x, y },
+        Piece { colour, piece_type, x, y, transform: Transform::from_translation(Vec3::new(x as f32, 0.0, y as f32)) },
         Pickable::IGNORE,
     )).with_children(|parent| {
         parent.spawn((
@@ -309,6 +322,6 @@ impl Plugin for PiecesPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, create_pieces)
-            .add_systems(Update, move_pieces);
+            .add_systems(Update, (move_pieces, transform_pieces));
     }
 }

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
 use crate::piece::Piece;
+use core::f32::consts::PI;
 
 #[derive(Default, Resource)]
 pub struct SelectedSquare {
@@ -53,6 +54,8 @@ fn select_square(
                 if let Ok((_piece_entity, mut piece)) = pieces_query.get_mut(selected_piece_entity)
                 {
                 	if piece.is_move_valid((square.x, square.y), pieces_vec) {
+	                    piece.transform.translation = Vec3::new(square.x as f32, 0., square.y as f32);
+
                         // Check if a piece of the opposite color exists in this square and despawn it
                         for (other_entity, other_piece) in pieces_entity_vec {
                             if other_piece.x == square.x
@@ -61,6 +64,12 @@ fn select_square(
                             {
                                 // Despawn piece
                                 commands.entity(other_entity).despawn_recursive();
+
+                                // grow current piece
+                                piece.transform.scale.x *= 2.0;
+                                piece.transform.scale.z *= 1.5;
+                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+                                piece.transform.translation -= Vec3::new(0.5, 0.0, 0.5);
                             }
                         }
 
