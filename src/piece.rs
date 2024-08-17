@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_mod_picking::picking_core::Pickable;
+use core::f32::consts::PI;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceColour {
@@ -17,13 +18,14 @@ pub enum PieceType {
     Pawn,
 }
 
-#[derive(Clone, Copy, Component)]
+#[derive(Clone, Component)]
 pub struct Piece {
     pub colour: PieceColour,
     pub piece_type: PieceType,
     pub x: u8,
     pub y: u8,
     pub transform: Transform,
+    pub squares_occupied: Vec<(i8, i8)>,
 }
 
 fn piece_colour_on_square(pos: (u8, u8), pieces: &Vec<Piece>) -> Option<PieceColour> {
@@ -192,6 +194,36 @@ impl Piece {
             }
         }
     }
+
+    pub fn consume_piece(&mut self, x: u8, y: u8) {
+        if x as i8 - self.x as i8 == y as i8 - self.y as i8 {
+            // diagonal capture
+            if x < self.x {
+                self.transform.scale.x *= 2.828; // 2sqrt2
+                self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+                self.transform.translation += Vec3::new(0.5, 0.0, 0.5);
+                self.squares_occupied.push((1, 1));
+            } else {
+                self.transform.scale.x *= 2.828;
+                self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+                self.transform.translation += Vec3::new(-0.5, 0.0, -0.5);
+                self.squares_occupied.push((-1, -1));
+            }
+        } else if x as i8 - self.x as i8 == self.y as i8 - y as i8 {
+            // diagonal capture (the other way)
+            if x < self.x {
+                self.transform.scale.z *= 2.828;
+                self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+                self.transform.translation += Vec3::new(0.5, 0.0, -0.5);
+                self.squares_occupied.push((1, -1));
+            } else {
+                self.transform.scale.z *= 2.828;
+                self.transform.rotation = Quat::from_rotation_y(-PI/4.0);
+                self.transform.translation += Vec3::new(-0.5, 0.0, 0.5);
+                self.squares_occupied.push((-1, 1));
+            }
+        }
+    }
 }
 
 fn move_pieces(time: Res<Time>, mut query: Query<(&mut Transform, &Piece)>) {
@@ -231,7 +263,11 @@ fn spawn_piece(
             transform: Transform::from_translation(Vec3::new(x as f32, 0.0, y as f32)),
             ..Default::default()
         },
-        Piece { colour, piece_type, x, y, transform: Transform::from_translation(Vec3::new(x as f32, 0.0, y as f32)) },
+        Piece {
+            colour, piece_type, x, y,
+            transform: Transform::from_translation(Vec3::new(x as f32, 0.0, y as f32)),
+            squares_occupied: vec![(0, 0)],
+        },
         Pickable::IGNORE,
     )).with_children(|parent| {
         parent.spawn((

@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
 use crate::piece::Piece;
-use core::f32::consts::PI;
 
 #[derive(Default, Resource)]
 pub struct SelectedSquare {
@@ -44,11 +43,11 @@ fn select_square(
                     .map(|(entity, piece)| {
                         (
                             entity,
-                            *piece,
+                            piece.clone(),
                         )
                     })
                     .collect();
-            	let pieces_vec = pieces_query.iter_mut().map(|(_, piece)| *piece).collect();
+            	let pieces_vec = pieces_query.iter_mut().map(|(_, piece)| piece.clone()).collect();
 
                 // Move the selected piece to the selected square
                 if let Ok((_piece_entity, mut piece)) = pieces_query.get_mut(selected_piece_entity)
@@ -65,30 +64,7 @@ fn select_square(
                                 // Despawn piece
                                 commands.entity(other_entity).despawn_recursive();
 
-                                // grow current piece
-                                if other_piece.x as i8 - piece.x as i8 == other_piece.y as i8 - piece.y as i8 {
-                                	// diagonal capture
-                                	if other_piece.x < piece.x {
-		                                piece.transform.scale.x *= 2.0;
-		                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
-		                                piece.transform.translation += Vec3::new(0.5, 0.0, 0.5);
-		                            } else {
-		                                piece.transform.scale.x *= 2.0;
-		                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
-		                                piece.transform.translation += Vec3::new(-0.5, 0.0, -0.5);
-		                            }
-	                            } else if other_piece.x as i8 - piece.x as i8 == piece.y as i8 - other_piece.y as i8 {
-                                	// diagonal capture (the other way)
-                                	if other_piece.x < piece.x {
-		                                piece.transform.scale.z *= 2.0;
-		                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
-		                                piece.transform.translation += Vec3::new(0.5, 0.0, -0.5);
-		                            } else {
-		                                piece.transform.scale.z *= 2.0;
-		                                piece.transform.rotation = Quat::from_rotation_y(-PI/4.0);
-		                                piece.transform.translation += Vec3::new(-0.5, 0.0, 0.5);
-		                            }
-	                            }
+                                piece.consume_piece(other_piece.x, other_piece.y);
                             }
                         }
 
@@ -112,6 +88,38 @@ fn select_square(
         }
     }
 }
+
+
+fn highlight_assoc_squares(
+	squares_query: Query<(Entity, &Square)>,
+	mut squares_query2: Query<(Entity, &Square, &mut PickSelection)>,
+    mut click_event: EventReader<Pointer<Click>>,
+	pieces_query: Query<(Entity, &Piece)>
+) {
+	for event in click_event.read() {
+		if let Ok((_, square)) = squares_query.get(event.target) {
+			for (_, piece) in pieces_query.iter() {
+				let mut piece_on_square = false;
+				for (dx, dy) in &piece.squares_occupied {
+					if square.x as i8 == piece.x as i8 + dx && square.y as i8 == piece.y as i8 + dy {
+						piece_on_square = true;
+						break;
+					}
+				}
+				if piece_on_square {
+					for (dx, dy) in &piece.squares_occupied {
+						for (_, square, mut pick_selection) in squares_query2.iter_mut() {
+							if square.x as i8 == piece.x as i8 + dx && square.y as i8 == piece.y as i8 + dy {
+								pick_selection.is_selected = true;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 
 fn setup_squares(
     mut commands: Commands,
@@ -147,6 +155,6 @@ impl Plugin for SquaresPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, setup_squares)
-            .add_systems(Update, select_square);
+            .add_systems(Update, (select_square, highlight_assoc_squares));
     }
 }
