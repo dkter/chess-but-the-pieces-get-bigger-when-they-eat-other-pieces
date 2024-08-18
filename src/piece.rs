@@ -308,30 +308,15 @@ impl Piece {
             let mut max_x = self.offset.x;
             let mut max_y = self.offset.z;
             for (x, y) in &self.squares_occupied {
-                // go up and to the right
-                if (*y as f32) - self.offset.z.floor() == (*x as f32) - self.offset.x.floor() && (*x as f32) > max_x {
-                    max_x = *x as f32;
-                    if self.squares_occupied.contains(&(*x, y + 1)) {
-                        max_x += 0.5;
-                    }
-                    else if self.squares_occupied.contains(&(x + 1, *y)) {
-                        max_x += 0.5;
-                    }
-                }
-                // go down and to the right
-                if (*y as f32) - self.offset.z.floor() == self.offset.x.floor() - (*x as f32) && (*y as f32) > max_y {
-                    max_y = *y as f32;
-                    if self.squares_occupied.contains(&(x + 1, *y)) {
-                        max_y += 0.5;
-                    }
-                    else if self.squares_occupied.contains(&(*x, y - 1)) {
-                        max_y += 0.5;
-                    }
-                }
+                // project top right corner onto pi/4 diagonal and bottom right corner onto -pi/4 diagonal
+                let x_mag = ((*x as f32 + 0.5 - self.offset.x) + (*y as f32 + 0.5 - self.offset.z)) * 1.414;
+                let y_mag = ((*x as f32 + 0.5 - self.offset.x) - (*y as f32 - 0.5 - self.offset.z)) * 1.414;
+                if x_mag > max_x { max_x = x_mag; }
+                if y_mag > max_y { max_y = y_mag; }
             }
 
-            self.transform.scale.x = (max_x - self.offset.x + 0.5) * 2.0 * 1.414;
-            self.transform.scale.z = (max_y - self.offset.z + 0.5) * 2.0 * 1.414;
+            self.transform.scale.x = max_x;//(max_x - self.offset.x + 0.5) * 2.0 * 1.414;
+            self.transform.scale.z = max_y;//(max_y - self.offset.z + 0.5) * 2.0 * 1.414;
             self.transform.scale.y *= 1.414;
         }
     }
