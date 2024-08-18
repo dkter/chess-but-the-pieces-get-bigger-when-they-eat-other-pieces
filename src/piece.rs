@@ -122,6 +122,10 @@ impl Piece {
     pub fn is_move_valid(&self, new_position: (u8, u8), pieces: Vec<Piece>) -> bool {
         let mut pawn_capture = None;
 
+        let pieces_without_self = pieces.iter()
+            .filter_map(|piece| if piece != self { Some(piece.clone()) } else { None })
+            .collect();
+
         for (dx, dy) in &self.squares_occupied {
             let x = self.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
             let y = self.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
@@ -157,7 +161,7 @@ impl Piece {
                     }
                 }
                 PieceType::Queen => {
-                    let result = is_path_empty((x, y), (new_x, new_y), &pieces)
+                    let result = is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
                         && ((x as i8 - new_x as i8).abs()
                             == (y as i8 - new_y as i8).abs()
                             || ((x == new_x && y != new_y)
@@ -167,7 +171,7 @@ impl Piece {
                     }
                 }
                 PieceType::Bishop => {
-                    let result = is_path_empty((x, y), (new_x, new_y), &pieces)
+                    let result = is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
                         && (x as i8 - new_x as i8).abs()
                             == (y as i8 - new_y as i8).abs();
                     if result == false {
@@ -184,7 +188,7 @@ impl Piece {
                     }
                 }
                 PieceType::Rook => {
-                    let result = is_path_empty((x, y), (new_x, new_y), &pieces)
+                    let result = is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
                         && ((x == new_x && y != new_y)
                             || (y == new_y && x != new_x));
                     if result == false {
@@ -195,7 +199,7 @@ impl Piece {
                     if self.colour == PieceColour::White {
                         // Normal move
                         if new_y as i8 - y as i8 == 1 && (x == new_x) {
-                            if piece_colour_on_square((new_x, new_y), &pieces).is_some() {
+                            if piece_colour_on_square((new_x, new_y), &pieces_without_self).is_some() {
                                 return false;
                             }
                         }
@@ -203,9 +207,9 @@ impl Piece {
                         else if y == 1
                             && new_y as i8 - y as i8 == 2
                             && (x == new_x)
-                            && is_path_empty((x, y), (new_x, new_y), &pieces)
+                            && is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
                         {
-                            if piece_colour_on_square((new_x, new_y), &pieces).is_some() {
+                            if piece_colour_on_square((new_x, new_y), &pieces_without_self).is_some() {
                                 return false;
                             }
                         }
@@ -213,7 +217,7 @@ impl Piece {
                         else if new_y as i8 - y as i8 == 1
                             && (x as i8 - new_x as i8).abs() == 1
                         {
-                            if piece_colour_on_square((new_x, new_y), &pieces) == Some(PieceColour::Black) {
+                            if piece_colour_on_square((new_x, new_y), &pieces_without_self) == Some(PieceColour::Black) {
                                 // valid pawn capture
                                 pawn_capture = Some(true);
                             } else {
@@ -230,7 +234,7 @@ impl Piece {
                     } else {
                         // Normal move
                         if new_y as i8 - y as i8 == -1 && (x == new_x) {
-                            if piece_colour_on_square((new_x, new_y), &pieces).is_some() {
+                            if piece_colour_on_square((new_x, new_y), &pieces_without_self).is_some() {
                                 return false;
                             }
                         }
@@ -238,9 +242,9 @@ impl Piece {
                         else if y == 6
                             && new_y as i8 - y as i8 == -2
                             && (x == new_x)
-                            && is_path_empty((x, y), (new_x, new_y), &pieces)
+                            && is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
                         {
-                            if piece_colour_on_square((new_x, new_y), &pieces).is_some() {
+                            if piece_colour_on_square((new_x, new_y), &pieces_without_self).is_some() {
                                 return false;
                             }
                         }
@@ -248,7 +252,7 @@ impl Piece {
                         else if new_y as i8 - y as i8 == -1
                             && (x as i8 - new_x as i8).abs() == 1
                         {
-                            if piece_colour_on_square((new_x, new_y), &pieces) == Some(PieceColour::White) {
+                            if piece_colour_on_square((new_x, new_y), &pieces_without_self) == Some(PieceColour::White) {
                                 // valid pawn capture
                                 pawn_capture = Some(true);
                             } else {
