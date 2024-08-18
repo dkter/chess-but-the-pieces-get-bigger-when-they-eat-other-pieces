@@ -28,7 +28,7 @@ impl Default for PlayerTurn {
 
 impl Square {
     fn is_white(&self) -> bool {
-        (self.x + self.y + 1) % 2 == 0
+        (self.x + self.y) % 2 == 0
     }
 }
 
@@ -128,34 +128,60 @@ fn select_square(
 }
 
 
-fn highlight_assoc_squares(
+fn highlight_selected_squares(
 	squares_query: Query<(Entity, &Square)>,
-	mut squares_query2: Query<(Entity, &Square, &mut PickSelection)>,
-    mut click_event: EventReader<Pointer<Click>>,
-	pieces_query: Query<(Entity, &Piece)>
+	squares_query2: Query<(Entity, &Square, &Handle<StandardMaterial>)>,
+	pieces_query: Query<(Entity, &Piece)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    selected_square: Res<SelectedSquare>,
+    selected_piece: Res<SelectedPiece>,
 ) {
-	for event in click_event.read() {
-		if let Ok((_, square)) = squares_query.get(event.target) {
-			for (_, piece) in pieces_query.iter() {
-				let mut piece_on_square = false;
-				for (dx, dy) in &piece.squares_occupied {
-					if square.x as i8 == piece.x as i8 + dx && square.y as i8 == piece.y as i8 + dy {
-						piece_on_square = true;
-						break;
-					}
-				}
-				if piece_on_square {
-					for (dx, dy) in &piece.squares_occupied {
-						for (_, square, mut pick_selection) in squares_query2.iter_mut() {
-							if square.x as i8 == piece.x as i8 + dx && square.y as i8 == piece.y as i8 + dy {
-								pick_selection.is_selected = true;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+    // if let Some(selected_square_entity) = selected_square.entity {
+	// 	// if let Ok((_, square)) = squares_query.get(selected_square_entity) {
+	// 	// 	for (_, piece) in pieces_query.iter() {
+	// 	// 		let mut piece_on_square = false;
+	// 	// 		for (dx, dy) in &piece.squares_occupied {
+	// 	// 			if square.x as i8 == piece.x as i8 + dx && square.y as i8 == piece.y as i8 + dy {
+	// 	// 				piece_on_square = true;
+	// 	// 				break;
+	// 	// 			}
+	// 	// 		}
+	// 	// 		if piece_on_square {
+					
+	// 	// 		}
+	// 	// 	}
+	// 	// }
+        
+    // }
+
+    for (entity, square, material_handle) in squares_query2.iter() {
+        let material = materials.get_mut(material_handle).unwrap();
+        material.base_color = if Some(entity) == selected_square.entity {
+            // square is selected
+            Color::srgb(0.6, 0.1, 0.3)
+        } else if {
+            let (_, selected_square) = squares_query.get(entity).unwrap();
+            if let Some(selected_piece_entity) = selected_piece.entity {
+                let (_, piece) = pieces_query.get(selected_piece_entity).unwrap();
+                let mut squares_occupied_contains_selected_square = false;
+                for (dx, dy) in &piece.squares_occupied {
+                    if piece.x.checked_add_signed(*dx).unwrap() == selected_square.x
+                        && piece.y.checked_add_signed(*dy).unwrap() == selected_square.y {
+                        squares_occupied_contains_selected_square = true;
+                    }
+                }
+                squares_occupied_contains_selected_square
+            } else { false }
+        } {
+            Color::srgb(0.5, 0.1, 0.3)
+        } else if square.is_white() {
+            // square is deselected and white
+            Color::srgb(0.9, 0.9, 1.0)
+        } else {
+            // square is deselected and black
+            Color::srgb(0.1, 0.1, 0.0)
+        };
+    }
 }
 
 
@@ -165,8 +191,8 @@ fn setup_squares(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let board_square_mesh = meshes.add(Plane3d::default().mesh().size(1.0, 1.0));
-    let board_black = materials.add(Color::srgb(0.1, 0.1, 0.0));
-    let board_white = materials.add(Color::srgb(0.9, 0.9, 1.0));
+    let board_black = Color::srgb(0.1, 0.1, 0.0);
+    let board_white = Color::srgb(0.9, 0.9, 1.0);
 
     for i in 0..8 {
         for j in 0..8 {
@@ -174,14 +200,15 @@ fn setup_squares(
                 PbrBundle {
                     mesh: board_square_mesh.clone(),
                     material: if (i + j) % 2 == 0 {
-                        board_white.clone()
+                        materials.add(board_white)
                     } else {
-                        board_black.clone()
+                        materials.add(board_black)
                     },
                     transform: Transform::from_translation(Vec3::new(i as f32, 0., j as f32)),
                     ..Default::default()
                 },
-                PickableBundle::default(),
+                Pickable::default(),
+                PickingInteraction::default(),
                 Square { x: i, y: j },
             ));
         }
@@ -194,6 +221,6 @@ impl Plugin for SquaresPlugin {
         app
             .insert_resource(PlayerTurn::default())
             .add_systems(Startup, setup_squares)
-            .add_systems(Update, (select_square, highlight_assoc_squares));
+            .add_systems(Update, (select_square, highlight_selected_squares));
     }
 }
