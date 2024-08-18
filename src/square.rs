@@ -150,8 +150,8 @@ fn highlight_selected_squares(
                     if let Some(piece) = select_piece {
                         let mut squares_occupied_contains_hovered_square = false;
                         for (dx, dy) in &piece.squares_occupied {
-                            if hover_square.x.checked_add_signed(*dx).unwrap() == square.x
-                                && hover_square.y.checked_add_signed(*dy).unwrap() == square.y {
+                            if hover_square.x.checked_add_signed(*dx) == Some(square.x)
+                                && hover_square.y.checked_add_signed(*dy) == Some(square.y) {
                                 squares_occupied_contains_hovered_square = true;
                             }
                         }
