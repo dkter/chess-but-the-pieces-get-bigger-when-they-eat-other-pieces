@@ -67,14 +67,16 @@ fn select_square(
                 			let square_y = square.y.checked_add_signed(dy).expect("y < 0");
 	                        // Check if a piece of the opposite color exists in this square and despawn it
 	                        for (other_entity, other_piece) in &pieces_entity_vec {
-	                            if other_piece.x == square_x
-	                                && other_piece.y == square_y
-	                                && other_piece.colour != piece.colour
-	                            {
-	                                // Despawn piece
-	                                commands.entity(*other_entity).despawn_recursive();
-	                                captured_piece = true;
-	                            }
+                                for (dx2, dy2) in &other_piece.squares_occupied {
+    	                            if other_piece.x.checked_add_signed(*dx2).expect("x < 0") == square_x
+    	                                && other_piece.y.checked_add_signed(*dy2).expect("y < 0") == square_y
+    	                                && other_piece.colour != piece.colour
+    	                            {
+    	                                // Despawn piece
+    	                                commands.entity(*other_entity).despawn_recursive();
+    	                                captured_piece = true;
+    	                            }
+                                }
 	                        }
 	                    }
 	                    if captured_piece {
