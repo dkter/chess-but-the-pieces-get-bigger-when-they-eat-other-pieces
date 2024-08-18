@@ -96,6 +96,7 @@ fn select_square(
                         selected_square.entity = None;
                         selected_piece.entity = None;
 	                } else {
+                        selected_piece.entity = None;
                         // Select the piece in the currently selected square
                         for (piece_entity, piece) in &pieces_entity_vec {
                             for (dx, dy) in &piece.squares_occupied {
