@@ -19,7 +19,7 @@ pub struct Square {
 }
 
 #[derive(Resource)]
-struct PlayerTurn(PieceColour);
+pub struct PlayerTurn(pub PieceColour);
 impl Default for PlayerTurn {
     fn default() -> Self {
         Self(PieceColour::White)
