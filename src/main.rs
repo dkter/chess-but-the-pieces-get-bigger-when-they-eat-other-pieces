@@ -38,6 +38,15 @@ fn setup(mut commands: Commands) {
         },
         ..Default::default()
     });
+    commands.spawn(PointLightBundle {
+        transform: Transform::from_translation(board_centre + Vec3::new(0., 4., 8.)),
+        point_light: PointLight {
+            intensity: 1_000_000.0,
+            shadows_enabled: true,
+            ..default()
+        },
+        ..Default::default()
+    });
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             illuminance: OVERCAST_DAY,
