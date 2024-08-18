@@ -120,6 +120,8 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
 impl Piece {
     /// Returns the possible_positions that are available
     pub fn is_move_valid(&self, new_position: (u8, u8), pieces: Vec<Piece>) -> bool {
+        let mut pawn_capture = None;
+
         for (dx, dy) in &self.squares_occupied {
             let x = self.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
             let y = self.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
@@ -211,9 +213,15 @@ impl Piece {
                         else if new_y as i8 - y as i8 == 1
                             && (x as i8 - new_x as i8).abs() == 1
                         {
-                            // if piece_colour_on_square((new_x, new_y), &pieces) == Some(PieceColour::White) {
-                            //     return false;
-                            // }
+                            if piece_colour_on_square((new_x, new_y), &pieces) == Some(PieceColour::Black) {
+                                // valid pawn capture
+                                pawn_capture = Some(true);
+                            } else {
+                                // invalid pawn capture
+                                if pawn_capture == None {
+                                    pawn_capture = Some(false);
+                                }
+                            }
                         }
                         else {
                             // Illegal move
@@ -240,9 +248,15 @@ impl Piece {
                         else if new_y as i8 - y as i8 == -1
                             && (x as i8 - new_x as i8).abs() == 1
                         {
-                            // if piece_colour_on_square((new_x, new_y), &pieces) == Some(PieceColour::Black) {
-                            //     return false;
-                            // }
+                            if piece_colour_on_square((new_x, new_y), &pieces) == Some(PieceColour::White) {
+                                // valid pawn capture
+                                pawn_capture = Some(true);
+                            } else {
+                                // invalid pawn capture
+                                if pawn_capture == None {
+                                    pawn_capture = Some(false);
+                                }
+                            }
                         }
                         else {
                             // Illegal move
@@ -252,7 +266,11 @@ impl Piece {
                 }
             };
         }
-        true
+        match pawn_capture {
+            Some(true) => true,   // valid pawn capture
+            Some(false) => false,   // invalid pawn capture
+            None => true,   // no pawn capture
+        }
     }
 
     pub fn update_transform(&mut self) {
