@@ -307,10 +307,10 @@ impl Piece {
             let mut max_x = self.offset.x;
             let mut max_y = self.offset.z;
             for (x, y) in &self.squares_occupied {
-                if (*y as f32) == self.offset.z && (*x as f32) > max_x {
+                if (*y as f32) == self.offset.z.floor() && (*x as f32) > max_x {
                     max_x = *x as f32;
                 }
-                if (*x as f32) == self.offset.x && (*y as f32) > max_y {
+                if (*x as f32) == self.offset.x.floor() && (*y as f32) > max_y {
                     max_y = *y as f32;
                 }
             }
