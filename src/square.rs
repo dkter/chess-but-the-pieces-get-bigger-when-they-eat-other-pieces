@@ -129,44 +129,24 @@ fn select_square(
 
 
 fn highlight_selected_squares(
-	squares_query: Query<(Entity, &Square)>,
-	squares_query2: Query<(Entity, &Square, &Handle<StandardMaterial>)>,
+	squares_query: Query<(Entity, &Square, &Handle<StandardMaterial>)>,
 	pieces_query: Query<(Entity, &Piece)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     selected_square: Res<SelectedSquare>,
     selected_piece: Res<SelectedPiece>,
 ) {
-    // if let Some(selected_square_entity) = selected_square.entity {
-	// 	// if let Ok((_, square)) = squares_query.get(selected_square_entity) {
-	// 	// 	for (_, piece) in pieces_query.iter() {
-	// 	// 		let mut piece_on_square = false;
-	// 	// 		for (dx, dy) in &piece.squares_occupied {
-	// 	// 			if square.x as i8 == piece.x as i8 + dx && square.y as i8 == piece.y as i8 + dy {
-	// 	// 				piece_on_square = true;
-	// 	// 				break;
-	// 	// 			}
-	// 	// 		}
-	// 	// 		if piece_on_square {
-					
-	// 	// 		}
-	// 	// 	}
-	// 	// }
-        
-    // }
-
-    for (entity, square, material_handle) in squares_query2.iter() {
+    for (entity, square, material_handle) in squares_query.iter() {
         let material = materials.get_mut(material_handle).unwrap();
         material.base_color = if Some(entity) == selected_square.entity {
             // square is selected
             Color::srgb(0.6, 0.1, 0.3)
         } else if {
-            let (_, selected_square) = squares_query.get(entity).unwrap();
             if let Some(selected_piece_entity) = selected_piece.entity {
                 let (_, piece) = pieces_query.get(selected_piece_entity).unwrap();
                 let mut squares_occupied_contains_selected_square = false;
                 for (dx, dy) in &piece.squares_occupied {
-                    if piece.x.checked_add_signed(*dx).unwrap() == selected_square.x
-                        && piece.y.checked_add_signed(*dy).unwrap() == selected_square.y {
+                    if piece.x.checked_add_signed(*dx).unwrap() == square.x
+                        && piece.y.checked_add_signed(*dy).unwrap() == square.y {
                         squares_occupied_contains_selected_square = true;
                     }
                 }
