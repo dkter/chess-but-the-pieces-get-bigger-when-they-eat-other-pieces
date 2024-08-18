@@ -309,7 +309,7 @@ impl Piece {
             let mut max_y = self.offset.z;
             for (x, y) in &self.squares_occupied {
                 // go up and to the right
-                if (*y as f32) - self.offset.z == (*x as f32) - self.offset.x && (*x as f32) > max_x {
+                if (*y as f32) - self.offset.z.floor() == (*x as f32) - self.offset.x.floor() && (*x as f32) > max_x {
                     max_x = *x as f32;
                     if self.squares_occupied.contains(&(*x, y + 1)) {
                         max_x += 0.5;
@@ -319,7 +319,7 @@ impl Piece {
                     }
                 }
                 // go down and to the right
-                if (*y as f32) - self.offset.z == self.offset.x - (*x as f32) && (*y as f32) > max_y {
+                if (*y as f32) - self.offset.z.floor() == self.offset.x.floor() - (*x as f32) && (*y as f32) > max_y {
                     max_y = *y as f32;
                     if self.squares_occupied.contains(&(x + 1, *y)) {
                         max_y += 0.5;
