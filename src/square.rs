@@ -90,11 +90,27 @@ fn select_square(
 	                    turn.0 = match turn.0 {
                             PieceColour::White => PieceColour::Black,
                             PieceColour::Black => PieceColour::White,
+                        };
+
+                        // deselect square and piece
+                        selected_square.entity = None;
+                        selected_piece.entity = None;
+	                } else {
+                        // Select the piece in the currently selected square
+                        for (piece_entity, piece) in &pieces_entity_vec {
+                            for (dx, dy) in &piece.squares_occupied {
+                                if piece.x as i8 + dx == square.x as i8 && piece.y as i8 + dy == square.y as i8 && piece.colour == turn.0 {
+                                    // piece_entity is now the entity in the same square
+                                    selected_piece.entity = Some(*piece_entity);
+                                    break;
+                                }
+                            }
                         }
-	                }
+                    }
+                } else {
+                    selected_square.entity = None;
+                    selected_piece.entity = None;
                 }
-                selected_square.entity = None;
-                selected_piece.entity = None;
             } else {
                 // Select the piece in the currently selected square
                 for (piece_entity, piece) in pieces_query.iter_mut() {
