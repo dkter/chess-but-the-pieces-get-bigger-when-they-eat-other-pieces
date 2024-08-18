@@ -409,10 +409,10 @@ fn move_pieces(time: Res<Time>, mut query: Query<(&mut Transform, &Piece)>) {
         let direction = piece.transform.translation - transform.translation;
         let scale_diff = piece.transform.scale - transform.scale;
         if direction.length() > 0.01 {
-            transform.translation += direction.normalize() * time.delta_seconds() * 2.0;
+            transform.translation += direction.normalize() * time.delta_seconds() * 4.0 * direction.length().sqrt();
         }
         if scale_diff.length() > 0.01 {
-            transform.scale += scale_diff.normalize() * time.delta_seconds() * 2.0;
+            transform.scale += scale_diff.normalize() * time.delta_seconds() * 4.0 * scale_diff.length().sqrt();
         }
     }
 }
