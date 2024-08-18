@@ -59,21 +59,26 @@ fn select_square(
             	let pieces_vec = pieces_query.iter_mut().map(|(_, piece)| piece.clone()).collect();
 
                 // Move the selected piece to the selected square
-                if let Ok((_piece_entity, mut piece)) = pieces_query.get_mut(selected_piece_entity)
-                {
+                if let Ok((_piece_entity, mut piece)) = pieces_query.get_mut(selected_piece_entity) {
                 	if piece.is_move_valid((square.x, square.y), pieces_vec) {
-
-                        // Check if a piece of the opposite color exists in this square and despawn it
-                        for (other_entity, other_piece) in pieces_entity_vec {
-                            if other_piece.x == square.x
-                                && other_piece.y == square.y
-                                && other_piece.colour != piece.colour
-                            {
-                                // Despawn piece
-                                commands.entity(other_entity).despawn_recursive();
-
-                                piece.consume_piece(other_piece.x, other_piece.y);
-                            }
+                		let mut captured_piece = false;
+                		for (dx, dy) in piece.squares_occupied.clone() {
+                			let square_x = square.x.checked_add_signed(dx).expect("x < 0");
+                			let square_y = square.y.checked_add_signed(dy).expect("y < 0");
+	                        // Check if a piece of the opposite color exists in this square and despawn it
+	                        for (other_entity, other_piece) in &pieces_entity_vec {
+	                            if other_piece.x == square_x
+	                                && other_piece.y == square_y
+	                                && other_piece.colour != piece.colour
+	                            {
+	                                // Despawn piece
+	                                commands.entity(*other_entity).despawn_recursive();
+	                                captured_piece = true;
+	                            }
+	                        }
+	                    }
+	                    if captured_piece {
+                            piece.consume_piece(square.x, square.y);
                         }
 	                    piece.transform.translation = Vec3::new(square.x as f32, 0., square.y as f32) + piece.offset;
 

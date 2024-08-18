@@ -273,8 +273,6 @@ impl Piece {
             for (x2, y2) in &self.squares_occupied {
                 if (*x as f32 - self.offset.x == self.offset.x - *x2 as f32 && *y as f32 == *y2 as f32)
                     || (*y as f32 - self.offset.z == self.offset.z - *y2 as f32 && *x as f32 == *x2 as f32) {
-                        // println!("{}, {}, {}, {} {} {}", *x as f32, self.offset.x, *x2 as f32,
-                        //                 *y as f32, self.offset.z, *y2 as f32);
                     is_symmetric = true;
                     break;
                 }
@@ -316,11 +314,17 @@ impl Piece {
                     if self.squares_occupied.contains(&(*x, y + 1)) {
                         max_x += 0.5;
                     }
+                    else if self.squares_occupied.contains(&(x + 1, *y)) {
+                        max_x += 0.5;
+                    }
                 }
                 // go down and to the right
                 if (*y as f32) - self.offset.z == self.offset.x - (*x as f32) && (*y as f32) > max_y {
                     max_y = *y as f32;
                     if self.squares_occupied.contains(&(x + 1, *y)) {
+                        max_y += 0.5;
+                    }
+                    else if self.squares_occupied.contains(&(*x, y - 1)) {
                         max_y += 0.5;
                     }
                 }
