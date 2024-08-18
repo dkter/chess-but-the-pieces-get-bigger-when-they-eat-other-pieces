@@ -355,7 +355,35 @@ impl Piece {
                     self.squares_occupied.insert((x - 1, y + 1));
                 }
             }
+        } else if x == self.x {
+            // vertical capture
+            if y < self.y {
+                for (x, y) in self.squares_occupied.clone() {
+                    self.squares_occupied.insert((x, y - 1));
+                }
+            } else if y > self.y {
+                for (x, y) in self.squares_occupied.clone() {
+                    self.squares_occupied.insert((x, y + 1));
+                }
+            } else {
+                panic!("attempted to capture on own square");
+            }
+        } else if y == self.y {
+            // horizontal capture
+            if x < self.x {
+                for (x, y) in self.squares_occupied.clone() {
+                    self.squares_occupied.insert((x - 1, y));
+                }
+            } else if x > self.x {
+                for (x, y) in self.squares_occupied.clone() {
+                    self.squares_occupied.insert((x + 1, y));
+                }
+            } else {
+                panic!("attempted to capture on own square");
+            }
         }
+
+
         // if there are any gaps they should be filled
         for (x, y) in self.squares_occupied.clone() {
             if
@@ -369,7 +397,6 @@ impl Piece {
         }
 
         self.update_transform();
-        //self.transform.translation += self.offset;
     }
 }
 
