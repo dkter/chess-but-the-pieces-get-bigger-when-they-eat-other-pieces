@@ -49,13 +49,13 @@ fn setup(mut commands: Commands) {
     });
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
-            illuminance: OVERCAST_DAY,
+            illuminance: 4000.0,
             //shadows_enabled: true,
             ..default()
         },
         transform: Transform {
             translation: Vec3::new(0.0, 12.0, 0.0),
-            rotation: Quat::from_rotation_x(-PI / 4.),
+            rotation: Quat::from_rotation_x(-PI / 2.),
             ..default()
         },
         ..default()
