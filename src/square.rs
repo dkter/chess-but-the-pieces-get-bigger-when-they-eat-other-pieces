@@ -137,33 +137,55 @@ fn highlight_selected_squares(
     mut materials: ResMut<Assets<StandardMaterial>>,
     selected_square: Res<SelectedSquare>,
     selected_piece: Res<SelectedPiece>,
+    mut move_event: EventReader<Pointer<Move>>,
 ) {
-    for (entity, square, material_handle) in squares_query.iter() {
-        let material = materials.get_mut(material_handle).unwrap();
-        material.base_color = if Some(entity) == selected_square.entity {
-            // square is selected
-            Color::srgb(0.6, 0.1, 0.3)
-        } else if {
-            if let Some(selected_piece_entity) = selected_piece.entity {
-                let (_, piece) = pieces_query.get(selected_piece_entity).unwrap();
-                let mut squares_occupied_contains_selected_square = false;
-                for (dx, dy) in &piece.squares_occupied {
-                    if piece.x.checked_add_signed(*dx).unwrap() == square.x
-                        && piece.y.checked_add_signed(*dy).unwrap() == square.y {
-                        squares_occupied_contains_selected_square = true;
+    let select_piece = selected_piece.entity.map(|entity| pieces_query.get(entity).unwrap().1);
+
+    for event in move_event.read() {
+        let hover_square = squares_query.get(event.target);
+        for (entity, square, material_handle) in squares_query.iter() {
+            let material = materials.get_mut(material_handle).unwrap();
+            material.base_color = if {
+                if let Ok((hover_entity, hover_square, _)) = hover_square {
+                    if let Some(piece) = select_piece {
+                        let mut squares_occupied_contains_hovered_square = false;
+                        for (dx, dy) in &piece.squares_occupied {
+                            if hover_square.x.checked_add_signed(*dx).unwrap() == square.x
+                                && hover_square.y.checked_add_signed(*dy).unwrap() == square.y {
+                                squares_occupied_contains_hovered_square = true;
+                            }
+                        }
+                        squares_occupied_contains_hovered_square
+                    } else {
+                        hover_entity == entity
                     }
-                }
-                squares_occupied_contains_selected_square
-            } else { false }
-        } {
-            Color::srgb(0.5, 0.1, 0.3)
-        } else if square.is_white() {
-            // square is deselected and white
-            Color::srgb(0.9, 0.9, 1.0)
-        } else {
-            // square is deselected and black
-            Color::srgb(0.1, 0.1, 0.0)
-        };
+                } else { false }
+            } {
+                Color::srgb(0.6, 0.5, 0.5)
+            } else if Some(entity) == selected_square.entity {
+                // square is selected
+                Color::srgb(0.6, 0.1, 0.3)
+            } else if {
+                if let Some(piece) = select_piece {
+                    let mut squares_occupied_contains_selected_square = false;
+                    for (dx, dy) in &piece.squares_occupied {
+                        if piece.x.checked_add_signed(*dx).unwrap() == square.x
+                            && piece.y.checked_add_signed(*dy).unwrap() == square.y {
+                            squares_occupied_contains_selected_square = true;
+                        }
+                    }
+                    squares_occupied_contains_selected_square
+                } else { false }
+            } {
+                Color::srgb(0.5, 0.1, 0.3)
+            } else if square.is_white() {
+                // square is deselected and white
+                Color::srgb(0.9, 0.9, 1.0)
+            } else {
+                // square is deselected and black
+                Color::srgb(0.1, 0.1, 0.0)
+            };
+        }
     }
 }
 
