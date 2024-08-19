@@ -145,6 +145,21 @@ pub fn is_square_defended(pos: (u8, u8), colour: PieceColour, pieces: &Vec<Piece
     false
 }
 
+pub fn is_colour_in_check(colour: PieceColour, pieces: &Vec<Piece>) -> bool {
+    for piece in pieces {
+        if piece.piece_type == PieceType::King && piece.colour == colour {
+            for &(dx, dy) in &piece.squares_occupied {
+                let x = piece.x.checked_add_signed(dx).unwrap();
+                let y = piece.y.checked_add_signed(dy).unwrap();
+                if is_square_defended((x, y), colour.opposite(), pieces) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 impl Piece {
     pub fn occupies_square(&self, square: (u8, u8)) -> bool {
         for &(dx, dy) in &self.squares_occupied {
@@ -469,7 +484,7 @@ impl Piece {
         moves
     }
 
-    pub fn is_move_valid(&self, new_position: (u8, u8), pieces: Vec<Piece>) -> bool {
+    pub fn is_move_valid(&self, new_position: (u8, u8), pieces: &Vec<Piece>) -> bool {
         let pieces_without_self = pieces.iter()
             .filter_map(|p| if p != self { Some(p.clone()) } else { None })
             .collect();
@@ -506,6 +521,30 @@ impl Piece {
         }
 
         false
+    }
+
+    /// Like is_move_valid, but also checks if the king would be in check afterwards
+    pub fn is_move_playable(&self, new_position: (u8, u8), pieces: &Vec<Piece>) -> bool {
+        if !self.is_move_valid(new_position, pieces) {
+            return false;
+        }
+
+        let pieces_after_move = pieces.iter().map(|piece| {
+            if piece == self {
+                let mut new_piece = piece.clone();
+                new_piece.x = new_position.0;
+                new_piece.y = new_position.1;
+                new_piece
+            } else {
+                piece.clone()
+            }
+        }).collect();
+
+        if is_colour_in_check(self.colour, &pieces_after_move) {
+            return false;
+        }
+
+        true
     }
 
     pub fn update_transform(&mut self) {

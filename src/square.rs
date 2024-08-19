@@ -60,7 +60,7 @@ fn select_square(
 
                 // Move the selected piece to the selected square
                 if let Ok((_piece_entity, mut piece)) = pieces_query.get_mut(selected_piece_entity) {
-                	if piece.is_move_valid((square.x, square.y), pieces_vec) {
+                	if piece.is_move_playable((square.x, square.y), &pieces_vec) {
                 		let mut captured_piece = false;
                 		for (dx, dy) in piece.squares_occupied.clone() {
                 			let square_x = square.x.checked_add_signed(dx).expect("x < 0");
