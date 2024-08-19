@@ -9,6 +9,15 @@ pub enum PieceColour {
     Black,
 }
 
+impl PieceColour {
+    pub fn opposite(&self) -> Self {
+        match self {
+            Self::White => Self::Black,
+            Self::Black => Self::White,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceType {
     King,
@@ -117,6 +126,91 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
     true
 }
 
+pub fn is_square_defended(pos: (u8, u8), colour: PieceColour, pieces: &Vec<Piece>) -> bool {
+    'piece_loop: for piece in pieces {
+        let pieces_without_self = pieces.iter()
+            .filter_map(|p| if p != piece { Some(p.clone()) } else { None })
+            .collect();
+
+        if piece.colour == colour {
+            for (dx, dy) in &piece.squares_occupied {
+                let virtual_piece_x = piece.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
+                let virtual_piece_y = piece.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
+
+                if virtual_piece_x == pos.0 && virtual_piece_y == pos.1 {
+                    continue 'piece_loop;
+                }
+
+                match piece.piece_type {
+                    PieceType::King => {
+                        let result = 
+                            // Horizontal
+                            ((virtual_piece_x as i8 - pos.0 as i8).abs() == 1
+                                && (virtual_piece_y == pos.1))
+                            // Vertical
+                            || ((virtual_piece_y as i8 - pos.1 as i8).abs() == 1
+                                && (virtual_piece_x == pos.0))
+                            // Diagonal
+                            || ((virtual_piece_x as i8 - pos.0 as i8).abs() == 1
+                                && (virtual_piece_y as i8 - pos.1 as i8).abs() == 1);
+                        if result == true {
+                            return true;
+                        }
+                    }
+                    PieceType::Queen => {
+                        let result = is_path_empty((virtual_piece_x, virtual_piece_y), pos, &pieces_without_self)
+                            && ((virtual_piece_x as i8 - pos.0 as i8).abs() == (virtual_piece_y as i8 - pos.1 as i8).abs()
+                                || ((virtual_piece_x == pos.0 && virtual_piece_y != pos.1)
+                                    || (virtual_piece_y == pos.1 && virtual_piece_x != pos.0)));
+                        if result == true {
+                            return true;
+                        }
+                    }
+                    PieceType::Bishop => {
+                        let result = is_path_empty((virtual_piece_x, virtual_piece_y), pos, &pieces_without_self)
+                            && (virtual_piece_x as i8 - pos.0 as i8).abs()
+                                == (virtual_piece_y as i8 - pos.1 as i8).abs();
+                        if result == true {
+                            return true;
+                        }
+                    }
+                    PieceType::Knight => {
+                        let result = ((virtual_piece_x as i8 - pos.0 as i8).abs() == 2
+                            && (virtual_piece_y as i8 - pos.1 as i8).abs() == 1)
+                            || ((virtual_piece_x as i8 - pos.0 as i8).abs() == 1
+                                && (virtual_piece_y as i8 - pos.1 as i8).abs() == 2);
+                        if result == true {
+                            return true;
+                        }
+                    }
+                    PieceType::Rook => {
+                        let result = is_path_empty((virtual_piece_x, virtual_piece_y), pos, &pieces_without_self)
+                            && ((virtual_piece_x == pos.0 && virtual_piece_y != pos.1)
+                                || (virtual_piece_y == pos.1 && virtual_piece_x != pos.0));
+                        if result == true {
+                            return true;
+                        }
+                    }
+                    PieceType::Pawn => {
+                        if piece.colour == PieceColour::White {
+                            if pos.1 as i8 - virtual_piece_y as i8 == 1
+                                && (virtual_piece_x as i8 - pos.0 as i8).abs() == 1 {
+                                return true;
+                            }
+                        } else {
+                            if pos.1 as i8 - virtual_piece_y as i8 == -1
+                                && (virtual_piece_x as i8 - pos.0 as i8).abs() == 1 {
+                                return true;
+                            }
+                        }
+                    }
+                };
+            }
+        }
+    }
+    false
+}
+
 impl Piece {
     /// Returns the possible_positions that are available
     pub fn is_move_valid(&self, new_position: (u8, u8), pieces: Vec<Piece>) -> bool {
@@ -157,6 +251,11 @@ impl Piece {
                         || ((x as i8 - new_x as i8).abs() == 1
                             && (y as i8 - new_y as i8).abs() == 1);
                     if result == false {
+                        return false;
+                    }
+
+                    // make sure the king isn't moving into check
+                    if is_square_defended((new_x, new_y), self.colour.opposite(), &pieces_without_self) {
                         return false;
                     }
                 }
