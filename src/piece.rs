@@ -3,6 +3,8 @@ use bevy_mod_picking::picking_core::Pickable;
 use core::f32::consts::PI;
 use std::collections::HashSet;
 
+use crate::square;
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceColour {
     White,
@@ -127,84 +129,16 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
 }
 
 pub fn is_square_defended(pos: (u8, u8), colour: PieceColour, pieces: &Vec<Piece>) -> bool {
-    'piece_loop: for piece in pieces {
-        let pieces_without_self = pieces.iter()
-            .filter_map(|p| if p != piece { Some(p.clone()) } else { None })
-            .collect();
-
+    for piece in pieces {
         if piece.colour == colour {
-            for (dx, dy) in &piece.squares_occupied {
-                let virtual_piece_x = piece.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
-                let virtual_piece_y = piece.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
-
-                if virtual_piece_x == pos.0 && virtual_piece_y == pos.1 {
-                    continue 'piece_loop;
+            for (move_dx, move_dy) in piece.valid_captures(pieces) {
+                for &(piece_dx, piece_dy) in &piece.squares_occupied {
+                    let move_x = piece.x.checked_add_signed(piece_dx + move_dx).unwrap();
+                    let move_y = piece.y.checked_add_signed(piece_dy + move_dy).unwrap();
+                    if (move_x, move_y) == pos {
+                        return true;
+                    }
                 }
-
-                match piece.piece_type {
-                    PieceType::King => {
-                        let result = 
-                            // Horizontal
-                            ((virtual_piece_x as i8 - pos.0 as i8).abs() == 1
-                                && (virtual_piece_y == pos.1))
-                            // Vertical
-                            || ((virtual_piece_y as i8 - pos.1 as i8).abs() == 1
-                                && (virtual_piece_x == pos.0))
-                            // Diagonal
-                            || ((virtual_piece_x as i8 - pos.0 as i8).abs() == 1
-                                && (virtual_piece_y as i8 - pos.1 as i8).abs() == 1);
-                        if result == true {
-                            return true;
-                        }
-                    }
-                    PieceType::Queen => {
-                        let result = is_path_empty((virtual_piece_x, virtual_piece_y), pos, &pieces_without_self)
-                            && ((virtual_piece_x as i8 - pos.0 as i8).abs() == (virtual_piece_y as i8 - pos.1 as i8).abs()
-                                || ((virtual_piece_x == pos.0 && virtual_piece_y != pos.1)
-                                    || (virtual_piece_y == pos.1 && virtual_piece_x != pos.0)));
-                        if result == true {
-                            return true;
-                        }
-                    }
-                    PieceType::Bishop => {
-                        let result = is_path_empty((virtual_piece_x, virtual_piece_y), pos, &pieces_without_self)
-                            && (virtual_piece_x as i8 - pos.0 as i8).abs()
-                                == (virtual_piece_y as i8 - pos.1 as i8).abs();
-                        if result == true {
-                            return true;
-                        }
-                    }
-                    PieceType::Knight => {
-                        let result = ((virtual_piece_x as i8 - pos.0 as i8).abs() == 2
-                            && (virtual_piece_y as i8 - pos.1 as i8).abs() == 1)
-                            || ((virtual_piece_x as i8 - pos.0 as i8).abs() == 1
-                                && (virtual_piece_y as i8 - pos.1 as i8).abs() == 2);
-                        if result == true {
-                            return true;
-                        }
-                    }
-                    PieceType::Rook => {
-                        let result = is_path_empty((virtual_piece_x, virtual_piece_y), pos, &pieces_without_self)
-                            && ((virtual_piece_x == pos.0 && virtual_piece_y != pos.1)
-                                || (virtual_piece_y == pos.1 && virtual_piece_x != pos.0));
-                        if result == true {
-                            return true;
-                        }
-                    }
-                    PieceType::Pawn => {
-                        if piece.colour == PieceColour::White {
-                            if pos.1 as i8 - virtual_piece_y as i8 == 1
-                                && (virtual_piece_x as i8 - pos.0 as i8).abs() == 1 {
-                                return true;
-                            }
-                        } else {
-                            if pos.1 as i8 - virtual_piece_y as i8 == -1
-                                && (virtual_piece_x as i8 - pos.0 as i8).abs() == 1 {
-                                return true;
-                            }
-                        }
-                    }
-                };
             }
         }
     }
@@ -212,168 +146,366 @@ pub fn is_square_defended(pos: (u8, u8), colour: PieceColour, pieces: &Vec<Piece
 }
 
 impl Piece {
-    /// Returns the possible_positions that are available
-    pub fn is_move_valid(&self, new_position: (u8, u8), pieces: Vec<Piece>) -> bool {
-        let mut pawn_capture = None;
+    pub fn occupies_square(&self, square: (u8, u8)) -> bool {
+        for &(dx, dy) in &self.squares_occupied {
+            let x = self.x.checked_add_signed(dx).expect("x of piece < 0");
+            let y = self.y.checked_add_signed(dy).expect("y of piece < 0");
+            if (x, y) == square {
+                return true;
+            }
+        }
+        false
+    }
 
+    pub fn valid_captures(&self, pieces: &Vec<Piece>) -> Vec<(i8, i8)> {
+        match self.piece_type {
+            PieceType::Pawn => {
+                let mut moves = Vec::new();
+                if self.colour == PieceColour::White {
+                    'move_loop: for move_dx in [-1, 1] {
+                        for &(piece_dx, piece_dy) in &self.squares_occupied {
+                            let Some(new_x) = self.x.checked_add_signed(piece_dx + move_dx) else {
+                                continue 'move_loop;
+                            };
+                            let Some(new_y) = self.y.checked_add_signed(piece_dy + 1) else {
+                                continue 'move_loop;
+                            };
+                            if new_x > 7 || new_y > 7 { continue 'move_loop; }
+
+                            for piece in pieces {
+                                // (new_x, new_y) cannot be occupied by a piece of the same colour
+                                if piece.colour == self.colour {
+                                    if piece.occupies_square((new_x, new_y)) {
+                                        continue 'move_loop;
+                                    }
+                                }
+                            }
+                        }
+                        moves.push((move_dx, 1));
+                    }
+                } else {
+                    'move_loop: for move_dx in [-1, 1] {
+                        for &(piece_dx, piece_dy) in &self.squares_occupied {
+                            let Some(new_x) = self.x.checked_add_signed(piece_dx + move_dx) else {
+                                continue 'move_loop;
+                            };
+                            let Some(new_y) = self.y.checked_add_signed(piece_dy - 1) else {
+                                continue 'move_loop;
+                            };
+                            if new_x > 7 || new_y > 7 { continue 'move_loop; }
+
+                            for piece in pieces {
+                                // (new_x, new_y) cannot be occupied by a piece of the same colour
+                                if piece.colour == self.colour {
+                                    if piece.occupies_square((new_x, new_y)) {
+                                        continue 'move_loop;
+                                    }
+                                }
+                            }
+                        }
+                        moves.push((move_dx, -1));
+                    }
+                }
+                moves
+            },
+            _ => self.valid_moves(pieces),
+        }
+    }
+
+    pub fn valid_moves(&self, pieces: &Vec<Piece>) -> Vec<(i8, i8)>  {
         let pieces_without_self = pieces.iter()
             .filter_map(|piece| if piece != self { Some(piece.clone()) } else { None })
             .collect();
 
-        for (dx, dy) in &self.squares_occupied {
-            let x = self.x.checked_add_signed(*dx).expect("Board x position of piece was <0");
-            let y = self.y.checked_add_signed(*dy).expect("Board y position of piece was <0");
-            let Some(new_x) = new_position.0.checked_add_signed(*dx) else {
-                return false;
-            };
-            let Some(new_y) = new_position.1.checked_add_signed(*dy) else {
-                return false;
-            };
+        let mut moves = Vec::new();
+        match self.piece_type {
+            PieceType::King => {
+                let move_deltas = [
+                    (-1, -1), (0, -1), (1, -1),
+                    (-1, 0), (1, 0),
+                    (-1, 1), (0, 1), (1, 1),
+                ];
+                'move_loop: for (move_dx, move_dy) in move_deltas {
+                    for &(piece_dx, piece_dy) in &self.squares_occupied {
+                        // (new_x, new_y) is the space occupied by this portion of the piece
+                        // after the move
+                        let Some(new_x) = self.x.checked_add_signed(piece_dx + move_dx) else {
+                            continue 'move_loop;   // new_x < 0, so invalid move
+                        };
+                        let Some(new_y) = self.y.checked_add_signed(piece_dy + move_dy) else {
+                            continue 'move_loop;   // new_y < 0, so invalid move
+                        };
+                        if new_x > 7 || new_y > 7 { continue 'move_loop; }
 
-            // If there's a piece of the same color in the same square, it can't move
-            // (unless it's the current piece)
-            if let Some(piece) = piece_on_square((new_x, new_y), &pieces) {
-                if piece != self && piece.colour == self.colour {
-                    return false;
+                        for piece in pieces {
+                            // (new_x, new_y) cannot be occupied by a piece of the same colour
+                            if piece.colour == self.colour {
+                                if piece.occupies_square((new_x, new_y)) {
+                                    continue 'move_loop;
+                                }
+                            } else {
+                                // since this is a king, (new_x, new_y) cannot be attacked by a piece of the opposite colour
+                                // this has the potential to end in an infinite loop, but only if we forget to remove self from pieces
+                                for (move2_dx, move2_dy) in piece.valid_captures(&pieces_without_self) {
+                                    for &(piece2_dx, piece2_dy) in &piece.squares_occupied {
+                                        let new_x2 = piece.x.checked_add_signed(piece2_dx + move2_dx).unwrap();
+                                        let new_y2 = piece.y.checked_add_signed(piece2_dy + move2_dy).unwrap();
+                                        if new_x == new_x2 && new_y == new_y2 {
+                                            continue 'move_loop;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    moves.push((move_dx, move_dy));
+                }
+            },
+            PieceType::Queen => {
+                let move_directions = [
+                    (-1, -1), (0, -1), (1, -1),
+                    (-1, 0), (1, 0),
+                    (-1, 1), (0, 1), (1, 1),
+                ];
+                'move_dir_loop: for (move_dx, move_dy) in move_directions {
+                    for move_magnitude in 1..=7 {
+                        for &(piece_dx, piece_dy) in &self.squares_occupied {
+                            // (new_x, new_y) is the space occupied by this portion of the piece
+                            // after the move
+                            let Some(new_x) = self.x.checked_add_signed(
+                                piece_dx + move_dx * move_magnitude) else {
+                                continue 'move_dir_loop;   // new_x < 0, so invalid move
+                            };
+                            let Some(new_y) = self.y.checked_add_signed(
+                                piece_dy + move_dy * move_magnitude) else {
+                                continue 'move_dir_loop;   // new_y < 0, so invalid move
+                            };
+                            if new_x > 7 || new_y > 7 { continue 'move_dir_loop; }
+
+                            for piece in pieces {
+                                // (new_x, new_y) cannot be occupied by a piece of the same colour
+                                if piece.colour == self.colour {
+                                    if piece.occupies_square((new_x, new_y)) {
+                                        continue 'move_dir_loop;
+                                    }
+                                }
+                            }
+                        }
+                        moves.push((move_dx * move_magnitude, move_dy * move_magnitude));
+                    }
+                }
+            },
+            PieceType::Bishop => {
+                let move_directions = [
+                    (-1, -1), (1, -1),
+                    (-1, 1), (1, 1),
+                ];
+                'move_dir_loop: for (move_dx, move_dy) in move_directions {
+                    for move_magnitude in 1..=7 {
+                        for &(piece_dx, piece_dy) in &self.squares_occupied {
+                            // (new_x, new_y) is the space occupied by this portion of the piece
+                            // after the move
+                            let Some(new_x) = self.x.checked_add_signed(
+                                piece_dx + move_dx * move_magnitude) else {
+                                continue 'move_dir_loop;   // new_x < 0, so invalid move
+                            };
+                            let Some(new_y) = self.y.checked_add_signed(
+                                piece_dy + move_dy * move_magnitude) else {
+                                continue 'move_dir_loop;   // new_y < 0, so invalid move
+                            };
+                            if new_x > 7 || new_y > 7 { continue 'move_dir_loop; }
+
+                            for piece in pieces {
+                                // (new_x, new_y) cannot be occupied by a piece of the same colour
+                                if piece.colour == self.colour {
+                                    if piece.occupies_square((new_x, new_y)) {
+                                        continue 'move_dir_loop;
+                                    }
+                                }
+                            }
+                        }
+                        moves.push((move_dx * move_magnitude, move_dy * move_magnitude));
+                    }
+                }
+            },
+            PieceType::Knight => {
+                let move_deltas = [
+                    (-2, -3), (-2, 3),
+                    (2, -3), (2, 3),
+                    (-3, -2), (-3, 2),
+                    (3, -2), (3, 2),
+                ];
+                'move_loop: for (move_dx, move_dy) in move_deltas {
+                    for &(piece_dx, piece_dy) in &self.squares_occupied {
+                        // (new_x, new_y) is the space occupied by this portion of the piece
+                        // after the move
+                        let Some(new_x) = self.x.checked_add_signed(piece_dx + move_dx) else {
+                            continue 'move_loop;   // new_x < 0, so invalid move
+                        };
+                        let Some(new_y) = self.y.checked_add_signed(piece_dy + move_dy) else {
+                            continue 'move_loop;   // new_y < 0, so invalid move
+                        };
+                        if new_x > 7 || new_y > 7 { continue 'move_loop; }
+
+                        for piece in pieces {
+                            // (new_x, new_y) cannot be occupied by a piece of the same colour
+                            if piece.colour == self.colour {
+                                if piece.occupies_square((new_x, new_y)) {
+                                    continue 'move_loop;
+                                }
+                            }
+                        }
+                    }
+                    moves.push((
+                        self.x as i8 + move_dx,
+                        self.y as i8 + move_dy,
+                    ));
+                }
+            },
+            PieceType::Rook => {
+                let move_directions = [
+                    (-1, 0), (1, 0),
+                    (0, -1), (0, 1),
+                ];
+                'move_dir_loop: for (move_dx, move_dy) in move_directions {
+                    for move_magnitude in 1..=7 {
+                        for &(piece_dx, piece_dy) in &self.squares_occupied {
+                            // (new_x, new_y) is the space occupied by this portion of the piece
+                            // after the move
+                            let Some(new_x) = self.x.checked_add_signed(
+                                piece_dx + move_dx * move_magnitude) else {
+                                continue 'move_dir_loop;   // new_x < 0, so invalid move
+                            };
+                            let Some(new_y) = self.y.checked_add_signed(
+                                piece_dy + move_dy * move_magnitude) else {
+                                continue 'move_dir_loop;   // new_y < 0, so invalid move
+                            };
+                            if new_x > 7 || new_y > 7 { continue 'move_dir_loop; }
+
+                            for piece in pieces {
+                                // (new_x, new_y) cannot be occupied by a piece of the same colour
+                                if piece.colour == self.colour {
+                                    if piece.occupies_square((new_x, new_y)) {
+                                        continue 'move_dir_loop;
+                                    }
+                                }
+                            }
+                        }
+                        moves.push((
+                            self.x as i8 + move_dx * move_magnitude,
+                            self.y as i8 + move_dy * move_magnitude,
+                        ));
+                    }
+                }
+            },
+            PieceType::Pawn => {
+                if self.colour == PieceColour::White {
+                    // one square forward
+                    for &(piece_dx, piece_dy) in &self.squares_occupied {
+                        let Some(new_x) = self.x.checked_add_signed(piece_dx) else {
+                            return moves; // we can return early here because if we can't move 1 square forward,
+                                            // we definitely can't move 2 squares forward
+                        };
+                        let Some(new_y) = self.y.checked_add_signed(piece_dy + 1) else {
+                            return moves;
+                        };
+                        if new_x > 7 || new_y > 7 { return moves; }
+
+                        for piece in pieces {
+                            // (new_x, new_y) cannot be occupied by a piece of any colour
+                            if piece.occupies_square((new_x, new_y)) {
+                                return moves;
+                            }
+                        }
+                    }
+                    moves.push((0, 1));
+
+                    // two squares forward
+                    // ignoring squares_occupied now because the pawn can't have moved or captured
+                    if self.y == 1 {
+                        for piece in pieces {
+                            // (new_x, new_y) cannot be occupied by a piece of any colour
+                            if piece.occupies_square((self.x, self.y + 2)) {
+                                return moves;
+                            }
+                        }
+                        moves.push((0, 2));
+                    }
+                } else {
+                    // one square forward
+                    for &(piece_dx, piece_dy) in &self.squares_occupied {
+                        let Some(new_x) = self.x.checked_add_signed(piece_dx) else {
+                            return moves; // we can return early here because if we can't move 1 square forward,
+                                            // we definitely can't move 2 squares forward
+                        };
+                        let Some(new_y) = self.y.checked_add_signed(piece_dy - 1) else {
+                            return moves;
+                        };
+                        if new_x > 7 || new_y > 7 { return moves; }
+
+                        for piece in pieces {
+                            // (new_x, new_y) cannot be occupied by a piece of any colour
+                            if piece.occupies_square((new_x, new_y)) {
+                                return moves;
+                            }
+                        }
+                    }
+                    moves.push((0, -1));
+
+                    // two squares forward
+                    // ignoring squares_occupied now because the pawn can't have moved or captured
+                    if self.y == 6 {
+                        for piece in pieces {
+                            // (new_x, new_y) cannot be occupied by a piece of any colour
+                            if piece.occupies_square((self.x, self.y - 2)) {
+                                return moves;
+                            }
+                        }
+                        moves.push((0, -2));
+                    }
+                }
+            }, 
+        }
+        moves
+    }
+
+    pub fn is_move_valid(&self, new_position: (u8, u8), pieces: Vec<Piece>) -> bool {
+        let pieces_without_self = pieces.iter()
+            .filter_map(|p| if p != self { Some(p.clone()) } else { None })
+            .collect();
+
+        for (move_dx, move_dy) in self.valid_moves(&pieces_without_self) {
+            let new_x = self.x.checked_add_signed(move_dx).unwrap();
+            let new_y = self.y.checked_add_signed(move_dy).unwrap();
+            if (new_x, new_y) == new_position {
+                return true;
+            }
+        }
+
+        // it bothers me that the next check is in practice only required for non-pawns, so i'll
+        // just return false if we're not a pawn here
+        if self.piece_type != PieceType::Pawn {
+            return false;
+        }
+
+        for (move_dx, move_dy) in self.valid_captures(&pieces_without_self) {
+            let new_x = self.x.checked_add_signed(move_dx).unwrap();
+            let new_y = self.y.checked_add_signed(move_dy).unwrap();
+            if (new_x, new_y) == new_position {
+                // make sure there is actually a piece to capture somewhere
+                for &(piece_dx, piece_dy) in &self.squares_occupied {
+                    let new_x = new_x.checked_add_signed(piece_dx).unwrap();
+                    let new_y = new_y.checked_add_signed(piece_dy).unwrap();
+                    for piece in &pieces_without_self {
+                        if piece.colour == self.colour.opposite() && piece.occupies_square((new_x, new_y)) {
+                            return true;
+                        }
+                    }
                 }
             }
-
-            match self.piece_type {
-                PieceType::King => {
-                    let result = 
-                        // Horizontal
-                        ((x as i8 - new_x as i8).abs() == 1
-                            && (y == new_y))
-                        // Vertical
-                        || ((y as i8 - new_y as i8).abs() == 1
-                            && (x == new_x))
-                        // Diagonal
-                        || ((x as i8 - new_x as i8).abs() == 1
-                            && (y as i8 - new_y as i8).abs() == 1);
-                    if result == false {
-                        return false;
-                    }
-
-                    // make sure the king isn't moving into check
-                    if is_square_defended((new_x, new_y), self.colour.opposite(), &pieces_without_self) {
-                        return false;
-                    }
-                }
-                PieceType::Queen => {
-                    let result = is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
-                        && ((x as i8 - new_x as i8).abs()
-                            == (y as i8 - new_y as i8).abs()
-                            || ((x == new_x && y != new_y)
-                                || (y == new_y && x != new_x)));
-                    if result == false {
-                        return false;
-                    }
-                }
-                PieceType::Bishop => {
-                    let result = is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
-                        && (x as i8 - new_x as i8).abs()
-                            == (y as i8 - new_y as i8).abs();
-                    if result == false {
-                        return false;
-                    }
-                }
-                PieceType::Knight => {
-                    let result = ((x as i8 - new_x as i8).abs() == 2
-                        && (y as i8 - new_y as i8).abs() == 1)
-                        || ((x as i8 - new_x as i8).abs() == 1
-                            && (y as i8 - new_y as i8).abs() == 2);
-                    if result == false {
-                        return false;
-                    }
-                }
-                PieceType::Rook => {
-                    let result = is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
-                        && ((x == new_x && y != new_y)
-                            || (y == new_y && x != new_x));
-                    if result == false {
-                        return false;
-                    }
-                }
-                PieceType::Pawn => {
-                    if self.colour == PieceColour::White {
-                        // Normal move
-                        if new_y as i8 - y as i8 == 1 && (x == new_x) {
-                            if piece_colour_on_square((new_x, new_y), &pieces_without_self).is_some() {
-                                return false;
-                            }
-                        }
-                        // Move 2 squares
-                        else if y == 1
-                            && new_y as i8 - y as i8 == 2
-                            && (x == new_x)
-                            && is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
-                        {
-                            if piece_colour_on_square((new_x, new_y), &pieces_without_self).is_some() {
-                                return false;
-                            }
-                        }
-                        // Take piece
-                        else if new_y as i8 - y as i8 == 1
-                            && (x as i8 - new_x as i8).abs() == 1
-                        {
-                            if piece_colour_on_square((new_x, new_y), &pieces_without_self) == Some(PieceColour::Black) {
-                                // valid pawn capture
-                                pawn_capture = Some(true);
-                            } else {
-                                // invalid pawn capture
-                                if pawn_capture == None {
-                                    pawn_capture = Some(false);
-                                }
-                            }
-                        }
-                        else {
-                            // Illegal move
-                            return false;
-                        }
-                    } else {
-                        // Normal move
-                        if new_y as i8 - y as i8 == -1 && (x == new_x) {
-                            if piece_colour_on_square((new_x, new_y), &pieces_without_self).is_some() {
-                                return false;
-                            }
-                        }
-                        // Move 2 squares
-                        else if y == 6
-                            && new_y as i8 - y as i8 == -2
-                            && (x == new_x)
-                            && is_path_empty((x, y), (new_x, new_y), &pieces_without_self)
-                        {
-                            if piece_colour_on_square((new_x, new_y), &pieces_without_self).is_some() {
-                                return false;
-                            }
-                        }
-                        // Take piece
-                        else if new_y as i8 - y as i8 == -1
-                            && (x as i8 - new_x as i8).abs() == 1
-                        {
-                            if piece_colour_on_square((new_x, new_y), &pieces_without_self) == Some(PieceColour::White) {
-                                // valid pawn capture
-                                pawn_capture = Some(true);
-                            } else {
-                                // invalid pawn capture
-                                if pawn_capture == None {
-                                    pawn_capture = Some(false);
-                                }
-                            }
-                        }
-                        else {
-                            // Illegal move
-                            return false;
-                        }
-                    }
-                }
-            };
         }
-        match pawn_capture {
-            Some(true) => true,   // valid pawn capture
-            Some(false) => false,   // invalid pawn capture
-            None => true,   // no pawn capture
-        }
+
+        false
     }
 
     pub fn update_transform(&mut self) {
