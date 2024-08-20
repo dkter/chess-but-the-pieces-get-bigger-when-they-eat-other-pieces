@@ -131,6 +131,10 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
 pub fn is_square_defended(pos: (u8, u8), colour: PieceColour, pieces: &Vec<Piece>) -> bool {
     for piece in pieces {
         if piece.colour == colour {
+            if piece.occupies_square(pos) {
+                // a piece cannot defend itself
+                continue;
+            }
             let pieces_without_self = pieces.iter()
                 .filter_map(|p| if p != piece { Some(p.clone()) } else { None })
                 .collect();
