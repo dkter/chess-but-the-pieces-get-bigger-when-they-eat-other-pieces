@@ -349,10 +349,13 @@ impl Piece {
 
                             for piece in pieces {
                                 // (new_x, new_y) cannot be occupied by a piece of the same colour
-                                if piece.colour == self.colour {
-                                    if piece.occupies_square((new_x, new_y)) {
-                                        continue 'move_dir_loop;
+                                if piece.occupies_square((new_x, new_y)) {
+                                    // if the piece is of the opposite colour, that's fine, we can capture it,
+                                    // but we can't move past it
+                                    if piece.colour != self.colour {
+                                        moves.push((move_dx * move_magnitude, move_dy * move_magnitude));
                                     }
+                                    continue 'move_dir_loop;
                                 }
                             }
                         }
@@ -382,10 +385,13 @@ impl Piece {
 
                             for piece in pieces {
                                 // (new_x, new_y) cannot be occupied by a piece of the same colour
-                                if piece.colour == self.colour {
-                                    if piece.occupies_square((new_x, new_y)) {
-                                        continue 'move_dir_loop;
+                                if piece.occupies_square((new_x, new_y)) {
+                                    // if the piece is of the opposite colour, that's fine, we can capture it,
+                                    // but we can't move past it
+                                    if piece.colour != self.colour {
+                                        moves.push((move_dx * move_magnitude, move_dy * move_magnitude));
                                     }
+                                    continue 'move_dir_loop;
                                 }
                             }
                         }
@@ -449,10 +455,13 @@ impl Piece {
 
                             for piece in pieces {
                                 // (new_x, new_y) cannot be occupied by a piece of the same colour
-                                if piece.colour == self.colour {
-                                    if piece.occupies_square((new_x, new_y)) {
-                                        continue 'move_dir_loop;
+                                if piece.occupies_square((new_x, new_y)) {
+                                    // if the piece is of the opposite colour, that's fine, we can capture it,
+                                    // but we can't move past it
+                                    if piece.colour != self.colour {
+                                        moves.push((move_dx * move_magnitude, move_dy * move_magnitude));
                                     }
+                                    continue 'move_dir_loop;
                                 }
                             }
                         }
