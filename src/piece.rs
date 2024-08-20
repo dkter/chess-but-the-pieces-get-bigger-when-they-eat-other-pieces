@@ -801,7 +801,7 @@ fn spawn_piece(
     });
 }
 
-fn create_pieces(
+pub fn create_pieces(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
 ) {

@@ -1,13 +1,19 @@
 mod piece;
 mod square;
 
-use bevy::color::palettes::css::PURPLE;
+use bevy::color::palettes::css::{BLACK, PURPLE};
 use bevy::prelude::*;
 use bevy::time::Stopwatch;
 use bevy_mod_picking::prelude::*;
-use piece::PieceColour;
+use piece::{create_pieces, Piece, PieceColour};
 use core::f32::consts::PI;
+use std::time::Duration;
 use square::{CheckmateEvent, PlayerTurn};
+
+
+const BUTTON_COLOR: Color = Color::srgb(0.0, 0.0, 0.0);
+const BUTTON_COLOR_HOVER: Color = Color::srgb(0.1, 0.1, 0.1);
+const BUTTON_COLOR_PRESS: Color = Color::srgb(0.2, 0.2, 0.2);
 
 
 #[derive(Component)]
@@ -21,6 +27,9 @@ struct Ui;
 
 #[derive(Component)]
 struct GameStatusText;
+
+#[derive(Component)]
+struct RestartButton;
 
 
 fn setup(mut commands: Commands) {
@@ -78,6 +87,7 @@ fn setup(mut commands: Commands) {
                 height: Val::Percent(100.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
+                flex_direction: FlexDirection::Column,
                 ..default()
             },
             background_color: Color::srgba(0.15, 0.1, 0.2, 0.8).into(),
@@ -94,6 +104,26 @@ fn setup(mut commands: Commands) {
             ),
             GameStatusText,
         ));
+        parent.spawn(
+            ButtonBundle {
+                style: Style {
+                    width: Val::Px(150.0),
+                    height: Val::Px(65.0),
+                    // horizontally center child text
+                    justify_content: JustifyContent::Center,
+                    // vertically center child text
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                background_color: BLACK.into(),
+                ..default()
+            },
+        ).with_children(|parent2| {
+            parent2.spawn(TextBundle::from_section(
+                "Play again",
+                TextStyle::default(),
+            ));
+        });
     });
 }
 
@@ -149,6 +179,47 @@ fn update_game_status(
     }
 }
 
+fn button_system(
+    mut commands: Commands,
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<Button>),
+    >,
+    pieces_query: Query<Entity, With<Piece>>,
+    asset_server: Res<AssetServer>,
+    mut turn: ResMut<PlayerTurn>,
+    mut ui_visibility: Query<&mut Visibility, With<Ui>>,
+    mut swivel_delay_query: Query<&mut SwivelDelay, With<Camera>>,
+) {
+    if let Ok((interaction, mut color)) = interaction_query.get_single_mut() {
+        match *interaction {
+            Interaction::Pressed => {
+                *color = BUTTON_COLOR_PRESS.into();
+                // Despawn all pieces
+                for piece_entity in pieces_query.iter() {
+                    commands.entity(piece_entity).despawn_recursive();
+                }
+                // Create new set of pieces
+                create_pieces(commands, asset_server);
+                // Set turn to white
+                turn.0 = PieceColour::White;
+                // Hide UI
+                let mut visibility = ui_visibility.get_single_mut().unwrap();
+                *visibility = Visibility::Hidden;
+                // Set swivel delay to 1.0 so it immediately swivels
+                let mut swivel_delay = swivel_delay_query.get_single_mut().unwrap();
+                swivel_delay.time.set_elapsed(Duration::from_secs_f32(1.0));
+            }
+            Interaction::Hovered => {
+                *color = BUTTON_COLOR_HOVER.into();
+            }
+            Interaction::None => {
+                *color = BUTTON_COLOR.into();
+            }
+        }
+    }
+}
+
 fn main() {
     App::new()
         .insert_resource(Msaa::default())
@@ -168,6 +239,6 @@ fn main() {
             square::SquaresPlugin,
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (swivel_camera, update_game_status))
+        .add_systems(Update, (swivel_camera, update_game_status, button_system))
         .run();
 }
