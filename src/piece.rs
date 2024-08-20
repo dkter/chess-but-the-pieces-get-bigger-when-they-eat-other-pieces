@@ -3,8 +3,6 @@ use bevy_mod_picking::picking_core::Pickable;
 use core::f32::consts::PI;
 use std::collections::HashSet;
 
-use crate::square;
-
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceColour {
     White,

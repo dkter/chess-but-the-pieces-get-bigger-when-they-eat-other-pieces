@@ -2,11 +2,10 @@ mod piece;
 mod square;
 
 use bevy::color::palettes::css::PURPLE;
-use bevy::pbr::light_consts::lux::OVERCAST_DAY;
 use bevy::prelude::*;
 use bevy::time::Stopwatch;
 use bevy_mod_picking::prelude::*;
-use piece::{is_colour_in_checkmate, Piece, PieceColour};
+use piece::PieceColour;
 use core::f32::consts::PI;
 use square::{CheckmateEvent, PlayerTurn};
 
