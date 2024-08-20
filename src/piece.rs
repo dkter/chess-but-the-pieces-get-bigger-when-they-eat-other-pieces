@@ -161,6 +161,16 @@ impl Piece {
         false
     }
 
+    pub fn occupies_row(&self, row: u8) -> bool {
+        for &(_dx, dy) in &self.squares_occupied {
+            let y = self.y.checked_add_signed(dy).expect("y of piece < 0");
+            if y == row {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn valid_captures(&self, pieces: &Vec<Piece>) -> Vec<(i8, i8)> {
         match self.piece_type {
             PieceType::Pawn => {
@@ -659,6 +669,27 @@ impl Piece {
     }
 }
 
+fn promote_pawns(
+    mut q_parent: Query<(&mut Piece, &Children)>,
+    mut q_child: Query<&mut Handle<Mesh>>,
+    asset_server: Res<AssetServer>,
+) {
+    for (mut piece, children) in q_parent.iter_mut() {
+        for &child in children.iter() {
+            if piece.piece_type == PieceType::Pawn && (
+                (piece.colour == PieceColour::White && piece.occupies_row(7))
+                || (piece.colour == PieceColour::Black && piece.occupies_row(0))) {
+                // too lazy to do a picker, so just promote to queen
+                piece.piece_type = PieceType::Queen;
+
+                let mut mesh = q_child.get_mut(child).unwrap();
+                let queen_handle: Handle<Mesh> = asset_server.load("Chess.glb#Mesh3/Primitive1");
+                *mesh = queen_handle;
+            }
+        }
+    }
+}
+
 fn move_pieces(time: Res<Time>, mut query: Query<(&mut Transform, &Piece)>) {
     for (mut transform, piece) in query.iter_mut() {
         let direction = piece.transform.translation - transform.translation;
@@ -808,6 +839,6 @@ impl Plugin for PiecesPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, create_pieces)
-            .add_systems(Update, (move_pieces, transform_pieces, disappear_pieces));
+            .add_systems(Update, (move_pieces, transform_pieces, disappear_pieces, promote_pawns));
     }
 }
