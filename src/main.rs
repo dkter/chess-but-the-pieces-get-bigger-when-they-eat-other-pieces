@@ -22,6 +22,11 @@ struct SwivelDelay {
     time: Stopwatch,
 }
 
+#[derive(Component)]
+struct WinDelay {
+    time: Stopwatch,
+}
+
 
 #[derive(Component)]
 struct Ui;
@@ -137,6 +142,12 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ));
         });
     });
+
+    commands.spawn(WinDelay { time: {
+        let mut s = Stopwatch::new();
+        s.pause();
+        s
+    } });
 }
 
 fn swivel_camera(
@@ -175,19 +186,42 @@ fn swivel_camera(
 
 fn update_game_status(
     mut game_status_text: Query<&mut Text, With<GameStatusText>>,
-    mut ui_visibility: Query<&mut Visibility, With<Ui>>,
     mut checkmate_event: EventReader<CheckmateEvent>,
+    mut win_delay: Query<&mut WinDelay>,
 ) {
     for ev in checkmate_event.read() {
+        let mut win_delay = win_delay.single_mut();
+        win_delay.time.reset();
+        win_delay.time.unpause();
+
         let mut text = game_status_text.get_single_mut().unwrap();
-        let mut visibility = ui_visibility.get_single_mut().unwrap();
-
-        *visibility = Visibility::Visible;
-
         match ev.0 {
             PieceColour::White => { text.sections[0].value = "Black wins!".to_string(); },
             PieceColour::Black => { text.sections[0].value = "White wins!".to_string(); },
         }
+    }
+}
+
+fn show_ui_on_win(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut win_delay: Query<&mut WinDelay>,
+    asset_server: Res<AssetServer>,
+    mut ui_visibility: Query<&mut Visibility, With<Ui>>,
+) {
+    let mut win_delay = win_delay.single_mut();
+    win_delay.time.tick(time.delta());
+    if win_delay.time.elapsed_secs() > 1.0 {
+        win_delay.time.pause();
+        win_delay.time.reset();
+
+        let mut visibility = ui_visibility.get_single_mut().unwrap();
+        *visibility = Visibility::Visible;
+
+        commands.spawn(AudioBundle {
+            source: asset_server.load("audio/win.wav"),
+            ..default()
+        });
     }
 }
 
@@ -251,6 +285,6 @@ fn main() {
             square::SquaresPlugin,
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (swivel_camera, update_game_status, button_system))
+        .add_systems(Update, (swivel_camera, update_game_status, button_system, show_ui_on_win))
         .run();
 }
