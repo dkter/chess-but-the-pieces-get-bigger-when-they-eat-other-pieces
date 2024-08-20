@@ -18,6 +18,9 @@ struct SwivelDelay {
 
 
 #[derive(Component)]
+struct Ui;
+
+#[derive(Component)]
 struct GameStatusText;
 
 
@@ -69,16 +72,22 @@ fn setup(mut commands: Commands) {
         brightness: 20.,
     });
     // UI
-    commands.spawn(NodeBundle {
-        style: Style {
-            width: Val::Percent(100.0),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            background_color: Color::srgba(0.15, 0.1, 0.2, 0.8).into(),
+            transform: Transform::from_xyz(0.0, 0.0, 0.0),
+            visibility: Visibility::Hidden,
             ..default()
         },
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        ..default()
-    }).with_children(|parent| {
+        Ui,
+    )).with_children(|parent| {
         parent.spawn((
             TextBundle::from_section(
                 "",
@@ -125,10 +134,14 @@ fn swivel_camera(
 
 fn update_game_status(
     mut game_status_text: Query<&mut Text, With<GameStatusText>>,
+    mut ui_visibility: Query<&mut Visibility, With<Ui>>,
     mut checkmate_event: EventReader<CheckmateEvent>,
 ) {
     for ev in checkmate_event.read() {
         let mut text = game_status_text.get_single_mut().unwrap();
+        let mut visibility = ui_visibility.get_single_mut().unwrap();
+
+        *visibility = Visibility::Visible;
 
         match ev.0 {
             PieceColour::White => { text.sections[0].value = "Black wins!".to_string(); },
