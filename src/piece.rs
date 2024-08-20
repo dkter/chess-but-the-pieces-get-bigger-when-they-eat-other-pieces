@@ -3,7 +3,7 @@ use bevy_mod_picking::picking_core::Pickable;
 use core::f32::consts::PI;
 use std::collections::HashSet;
 
-use crate::square::ConsumeEvent;
+use crate::{square::ConsumeEvent, LoadingData};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceColour {
@@ -765,6 +765,7 @@ fn spawn_piece(
 
 pub fn create_pieces(
     mut commands: Commands,
+    mut loading_data: ResMut<LoadingData>,
     asset_server: Res<AssetServer>,
 ) {
     let king_handle: Handle<Mesh> = asset_server.load("Chess.glb#Mesh2/Primitive1");
@@ -775,6 +776,15 @@ pub fn create_pieces(
     let rook_handle: Handle<Mesh> = asset_server.load("Chess.glb#Mesh7/Primitive0");
     let chrome_handle: Handle<StandardMaterial> = asset_server.load("Chess.glb#Material6");
     let brass_handle: Handle<StandardMaterial> = asset_server.load("Chess.glb#Material9");
+
+    loading_data.loading_assets.push(king_handle.clone().into());
+    loading_data.loading_assets.push(queen_handle.clone().into());
+    loading_data.loading_assets.push(pawn_handle.clone().into());
+    loading_data.loading_assets.push(knight_handle.clone().into());
+    loading_data.loading_assets.push(bishop_handle.clone().into());
+    loading_data.loading_assets.push(rook_handle.clone().into());
+    loading_data.loading_assets.push(chrome_handle.clone().into());
+    loading_data.loading_assets.push(brass_handle.clone().into());
 
     // white king
     spawn_piece(&mut commands, chrome_handle.clone(), king_handle.clone(), PieceType::King, PieceColour::White, 3, 0);
