@@ -1,7 +1,7 @@
 mod piece;
 mod square;
 
-use bevy::color::palettes::css::PURPLE;
+use bevy::{asset::AssetMetaCheck, color::palettes::css::PURPLE};
 use bevy::prelude::*;
 use bevy::time::Stopwatch;
 use bevy_mod_picking::prelude::*;
@@ -278,6 +278,9 @@ fn main() {
                     resolution: (800., 800.).into(),
                     ..default()
                 }),
+                ..default()
+            }).set(AssetPlugin {
+                meta_check: AssetMetaCheck::Never,
                 ..default()
             }),
             DefaultPickingPlugins,
