@@ -668,7 +668,7 @@ impl Piece {
 
             self.transform.scale.x = max_x;//(max_x - self.offset.x + 0.5) * 2.0 * 1.414;
             self.transform.scale.z = max_y;//(max_y - self.offset.z + 0.5) * 2.0 * 1.414;
-            self.transform.scale.y *= 1.414;
+            self.transform.scale.y *= 1.1;
         }
     }
 
