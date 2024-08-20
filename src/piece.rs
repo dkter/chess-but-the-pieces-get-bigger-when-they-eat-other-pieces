@@ -177,14 +177,18 @@ pub fn is_colour_in_checkmate(colour: PieceColour, pieces: &Vec<Piece>) -> bool 
             for (move_dx, move_dy) in piece.valid_moves(&pieces_without_self) {
                 let new_x = piece.x.checked_add_signed(move_dx).unwrap();
                 let new_y = piece.y.checked_add_signed(move_dy).unwrap();
-                let pieces_after_move = pieces.iter().map(|p| {
+                let pieces_after_move = pieces.iter().filter_map(|p| {
                     if p == piece {
                         let mut new_piece = p.clone();
                         new_piece.x = new_x;
                         new_piece.y = new_y;
-                        new_piece
+                        Some(new_piece)
+                    } else if p.occupies_square((new_x, new_y)) {
+                        // assume all necessary checks have already been done and this is a piece
+                        // of the opposite colour
+                        None
                     } else {
-                        p.clone()
+                        Some(p.clone())
                     }
                 }).collect();
 
@@ -200,14 +204,18 @@ pub fn is_colour_in_checkmate(colour: PieceColour, pieces: &Vec<Piece>) -> bool 
             for (move_dx, move_dy) in piece.valid_captures(&pieces_without_self) {
                 let new_x = piece.x.checked_add_signed(move_dx).unwrap();
                 let new_y = piece.y.checked_add_signed(move_dy).unwrap();
-                let pieces_after_move = pieces.iter().map(|p| {
+                let pieces_after_move = pieces.iter().filter_map(|p| {
                     if p == piece {
                         let mut new_piece = p.clone();
                         new_piece.x = new_x;
                         new_piece.y = new_y;
-                        new_piece
+                        Some(new_piece)
+                    } else if p.occupies_square((new_x, new_y)) {
+                        // assume all necessary checks have already been done and this is a piece
+                        // of the opposite colour
+                        None
                     } else {
-                        p.clone()
+                        Some(p.clone())
                     }
                 }).collect();
                 if !is_colour_in_check(piece.colour, &pieces_after_move) {
@@ -588,14 +596,18 @@ impl Piece {
             return false;
         }
 
-        let pieces_after_move = pieces.iter().map(|piece| {
+        let pieces_after_move = pieces.iter().filter_map(|piece| {
             if piece == self {
                 let mut new_piece = piece.clone();
                 new_piece.x = new_position.0;
                 new_piece.y = new_position.1;
-                new_piece
+                Some(new_piece)
+            } else if piece.occupies_square(new_position) {
+                // assume all necessary checks have already been done and this is a piece
+                // of the opposite colour
+                None
             } else {
-                piece.clone()
+                Some(piece.clone())
             }
         }).collect();
 
