@@ -44,6 +44,7 @@ fn select_square(
     squares_query: Query<(Entity, &Square)>,
     mut pieces_query: Query<(Entity, &mut Piece)>,
     mut checkmate_writer: EventWriter<CheckmateEvent>,
+    asset_server: Res<AssetServer>,
 ) {
 
     for event in click_event.read() {
@@ -102,6 +103,11 @@ fn select_square(
                         if is_colour_in_checkmate(turn.0, &new_pieces_vec) {
                             checkmate_writer.send(CheckmateEvent(turn.0));
                         }
+
+                        commands.spawn(AudioBundle {
+                            source: asset_server.load("audio/click.wav"),
+                            ..default()
+                        });
 
                         // deselect square and piece
                         selected_square.entity = None;
