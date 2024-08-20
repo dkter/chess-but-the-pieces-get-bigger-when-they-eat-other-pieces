@@ -14,6 +14,7 @@ use square::{CheckmateEvent, PlayerTurn};
 const BUTTON_COLOR: Color = Color::srgb(0.4, 0.2, 0.24);
 const BUTTON_COLOR_HOVER: Color = Color::srgb(0.2, 0.1, 0.12);
 const BUTTON_COLOR_PRESS: Color = Color::srgb(0.8, 0.8, 0.8);
+const BACKGROUND_COLOR: Color = Color::srgb(0.15, 0.1, 0.13);
 
 
 #[derive(Component)]
@@ -36,6 +37,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         Camera3dBundle {
             transform: Transform::from_xyz(3.5, 10.0, -7.5).looking_at(board_centre, Vec3::Y),
+            camera: Camera {
+                clear_color: ClearColorConfig::Custom(BACKGROUND_COLOR),
+                ..Default::default()
+            },
             ..Default::default()
         },
         SwivelDelay { time: Stopwatch::new() },
