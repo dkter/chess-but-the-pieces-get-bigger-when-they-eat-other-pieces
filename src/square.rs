@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
-use crate::piece::{is_colour_in_checkmate, Piece, PieceColour};
+use crate::piece::{is_colour_in_checkmate, Piece, PieceColour, PieceType};
 
 #[derive(Event)]
 pub struct CheckmateEvent(pub PieceColour);
@@ -23,6 +23,9 @@ pub struct Square {
     pub x: u8,
     pub y: u8,
 }
+
+#[derive(Event)]
+pub enum CastleEvent { Queenside(PieceColour), Kingside(PieceColour) }
 
 #[derive(Resource)]
 pub struct PlayerTurn(pub PieceColour);
@@ -48,6 +51,7 @@ fn select_square(
     mut pieces_query: Query<(Entity, &mut Piece)>,
     mut checkmate_writer: EventWriter<CheckmateEvent>,
     mut consume_writer: EventWriter<ConsumeEvent>,
+    mut castle_writer: EventWriter<CastleEvent>,
     asset_server: Res<AssetServer>,
 ) {
 
@@ -93,9 +97,19 @@ fn select_square(
                         }
 	                    piece.transform.translation = Vec3::new(square.x as f32, 0., square.y as f32) + piece.offset;
 
+                        // check if move is a castle, and if so, move rook
+                        if piece.piece_type == PieceType::King && piece.x.abs_diff(square.x) == 2 {
+                            if square.x < piece.x {
+                                castle_writer.send(CastleEvent::Queenside(piece.colour));
+                            } else {
+                                castle_writer.send(CastleEvent::Kingside(piece.colour));
+                            }
+                        }
+
                         // move piece
 	                    piece.x = square.x;
 	                    piece.y = square.y;
+                        piece.has_moved = true;
 
 	                    // switch turns
 	                    turn.0 = match turn.0 {
@@ -247,6 +261,7 @@ impl Plugin for SquaresPlugin {
             .add_systems(Startup, setup_squares)
             .add_systems(Update, (select_square, highlight_selected_squares))
             .add_event::<CheckmateEvent>()
+            .add_event::<CastleEvent>()
             .add_event::<ConsumeEvent>();
     }
 }

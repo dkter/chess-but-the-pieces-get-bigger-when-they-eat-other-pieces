@@ -3,7 +3,7 @@ use bevy_mod_picking::picking_core::Pickable;
 use core::f32::consts::PI;
 use std::collections::HashSet;
 
-use crate::{square::ConsumeEvent, LoadingData};
+use crate::{square::{CastleEvent, ConsumeEvent}, LoadingData};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceColour {
@@ -39,6 +39,16 @@ pub struct Piece {
     pub transform: Transform,
     pub offset: Vec3,
     pub squares_occupied: HashSet<(i8, i8)>,
+    pub has_moved: bool,
+}
+
+pub fn is_square_occupied(pos: (u8, u8), pieces: &Vec<Piece>) -> bool {
+    for piece in pieces {
+        if piece.occupies_square(pos) {
+            return true;
+        }
+    }
+    false
 }
 
 pub fn is_square_defended(pos: (u8, u8), colour: PieceColour, pieces: &Vec<Piece>) -> bool {
@@ -255,6 +265,40 @@ impl Piece {
                         }
                     }
                     moves.push((move_dx, move_dy));
+                }
+
+                // castling
+                if !self.has_moved {
+                    let pieces_without_self = pieces.iter()
+                        .filter_map(|p| if p != self { Some(p.clone()) } else { None })
+                        .collect();
+                    for piece in pieces {
+                        if piece.colour == self.colour && piece.piece_type == PieceType::Rook && !piece.has_moved {
+                            let y = if piece.colour == PieceColour::White { 0 } else { 7 };
+                            if piece.x == 0 {
+                                // queenside
+                                if 
+                                    !is_square_defended((4, y), self.colour.opposite(), &pieces_without_self)
+                                    && !is_square_defended((3, y), self.colour.opposite(), &pieces_without_self)
+                                    && !is_square_occupied((3, y), &pieces_without_self)
+                                    && !is_square_occupied((2, y), &pieces_without_self)
+                                    && !is_square_occupied((1, y), &pieces_without_self)
+                                {
+                                    moves.push((-2, 0));
+                                }
+                            } else if piece.x == 7 {
+                                // kingside
+                                if 
+                                    !is_square_defended((4, y), self.colour.opposite(), &pieces_without_self)
+                                    && !is_square_defended((5, y), self.colour.opposite(), &pieces_without_self)
+                                    && !is_square_occupied((5, y), &pieces_without_self)
+                                    && !is_square_occupied((6, y), &pieces_without_self)
+                                {
+                                    moves.push((2, 0));
+                                }
+                            }
+                        }
+                    }
                 }
             },
             PieceType::Queen => {
@@ -690,6 +734,34 @@ fn promote_pawns(
     }
 }
 
+fn castle(
+    mut event_reader: EventReader<CastleEvent>,
+    mut query: Query<&mut Piece>,
+) {
+    for castle_event in event_reader.read() {
+        match castle_event {
+            CastleEvent::Queenside(colour) => {
+                for mut piece in query.iter_mut() {
+                    if piece.colour == *colour && piece.piece_type == PieceType::Rook && piece.x == 0 {
+                        piece.x = 2;
+                        piece.has_moved = true;
+                        piece.transform.translation = Vec3::new(piece.x as f32, 0., piece.y as f32) + piece.offset;
+                    }
+                }
+            },
+            CastleEvent::Kingside(colour) => {
+                for mut piece in query.iter_mut() {
+                    if piece.colour == *colour && piece.piece_type == PieceType::Rook && piece.x == 7 {
+                        piece.x = 4;
+                        piece.has_moved = true;
+                        piece.transform.translation = Vec3::new(piece.x as f32, 0., piece.y as f32) + piece.offset;
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn move_pieces(time: Res<Time>, mut query: Query<(&mut Transform, &Piece)>) {
     for (mut transform, piece) in query.iter_mut() {
         let direction = piece.transform.translation - transform.translation;
@@ -748,6 +820,7 @@ fn spawn_piece(
             transform: Transform::from_translation(Vec3::new(x as f32, 0.0, y as f32)),
             offset: Vec3::ZERO,
             squares_occupied: HashSet::from([(0, 0)]),
+            has_moved: false,
         },
         Pickable::IGNORE,
     )).with_children(|parent| {
@@ -849,6 +922,6 @@ impl Plugin for PiecesPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, create_pieces)
-            .add_systems(Update, (move_pieces, transform_pieces, disappear_pieces, promote_pawns));
+            .add_systems(Update, (move_pieces, transform_pieces, disappear_pieces, promote_pawns, castle));
     }
 }
