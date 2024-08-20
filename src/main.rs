@@ -1,7 +1,7 @@
 mod piece;
 mod square;
 
-use bevy::color::palettes::css::{BLACK, PURPLE};
+use bevy::color::palettes::css::PURPLE;
 use bevy::prelude::*;
 use bevy::time::Stopwatch;
 use bevy_mod_picking::prelude::*;
@@ -11,9 +11,9 @@ use std::time::Duration;
 use square::{CheckmateEvent, PlayerTurn};
 
 
-const BUTTON_COLOR: Color = Color::srgb(0.0, 0.0, 0.0);
-const BUTTON_COLOR_HOVER: Color = Color::srgb(0.1, 0.1, 0.1);
-const BUTTON_COLOR_PRESS: Color = Color::srgb(0.2, 0.2, 0.2);
+const BUTTON_COLOR: Color = Color::srgb(0.4, 0.2, 0.24);
+const BUTTON_COLOR_HOVER: Color = Color::srgb(0.2, 0.1, 0.12);
+const BUTTON_COLOR_PRESS: Color = Color::srgb(0.8, 0.8, 0.8);
 
 
 #[derive(Component)]
@@ -28,11 +28,8 @@ struct Ui;
 #[derive(Component)]
 struct GameStatusText;
 
-#[derive(Component)]
-struct RestartButton;
 
-
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let board_centre = Vec3::new(3.5, 0.0, 3.5);
 
     // Camera
@@ -88,9 +85,10 @@ fn setup(mut commands: Commands) {
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(20.0),
                 ..default()
             },
-            background_color: Color::srgba(0.15, 0.1, 0.2, 0.8).into(),
+            background_color: Color::srgba(0.12, 0.1, 0.15, 0.8).into(),
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             visibility: Visibility::Hidden,
             ..default()
@@ -100,14 +98,18 @@ fn setup(mut commands: Commands) {
         parent.spawn((
             TextBundle::from_section(
                 "",
-                TextStyle::default(),
+                TextStyle {
+                    font: asset_server.load("fonts/IBMPlexSerif-SemiBold.ttf"),
+                    font_size: 40.0,
+                    color: Color::srgb(0.9, 0.9, 0.9),
+                },
             ),
             GameStatusText,
         ));
         parent.spawn(
             ButtonBundle {
                 style: Style {
-                    width: Val::Px(150.0),
+                    width: Val::Px(200.0),
                     height: Val::Px(65.0),
                     // horizontally center child text
                     justify_content: JustifyContent::Center,
@@ -115,13 +117,18 @@ fn setup(mut commands: Commands) {
                     align_items: AlignItems::Center,
                     ..default()
                 },
-                background_color: BLACK.into(),
+                background_color: BUTTON_COLOR.into(),
+                border_radius: BorderRadius::all(Val::Px(5.0)),
                 ..default()
             },
         ).with_children(|parent2| {
             parent2.spawn(TextBundle::from_section(
                 "Play again",
-                TextStyle::default(),
+                TextStyle {
+                    font: asset_server.load("fonts/IBMPlexSerif-Italic.ttf"),
+                    font_size: 40.0,
+                    color: Color::srgb(0.9, 0.9, 0.9),
+                },
             ));
         });
     });
