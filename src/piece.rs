@@ -409,10 +409,10 @@ impl Piece {
             },
             PieceType::Knight => {
                 let move_deltas = [
-                    (-2, -3), (-2, 3),
-                    (2, -3), (2, 3),
-                    (-3, -2), (-3, 2),
-                    (3, -2), (3, 2),
+                    (-1, -2), (-1, 2),
+                    (1, -2), (1, 2),
+                    (-2, -1), (-2, 1),
+                    (2, -1), (2, 1),
                 ];
                 'move_loop: for (move_dx, move_dy) in move_deltas {
                     for &(piece_dx, piece_dy) in &self.squares_occupied {
@@ -435,10 +435,7 @@ impl Piece {
                             }
                         }
                     }
-                    moves.push((
-                        self.x as i8 + move_dx,
-                        self.y as i8 + move_dy,
-                    ));
+                    moves.push((move_dx, move_dy));
                 }
             },
             PieceType::Rook => {
@@ -473,10 +470,7 @@ impl Piece {
                                 }
                             }
                         }
-                        moves.push((
-                            self.x as i8 + move_dx * move_magnitude,
-                            self.y as i8 + move_dy * move_magnitude,
-                        ));
+                        moves.push((move_dx * move_magnitude,  move_dy * move_magnitude));
                     }
                 }
             },
