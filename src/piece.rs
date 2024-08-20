@@ -296,10 +296,6 @@ impl Piece {
     }
 
     pub fn valid_moves(&self, pieces: &Vec<Piece>) -> Vec<(i8, i8)>  {
-        let pieces_without_self = pieces.iter()
-            .filter_map(|piece| if piece != self { Some(piece.clone()) } else { None })
-            .collect();
-
         let mut moves = Vec::new();
         match self.piece_type {
             PieceType::King => {
@@ -322,22 +318,8 @@ impl Piece {
 
                         for piece in pieces {
                             // (new_x, new_y) cannot be occupied by a piece of the same colour
-                            if piece.colour == self.colour {
-                                if piece.occupies_square((new_x, new_y)) {
-                                    continue 'move_loop;
-                                }
-                            } else {
-                                // since this is a king, (new_x, new_y) cannot be attacked by a piece of the opposite colour
-                                // this has the potential to end in an infinite loop, but only if we forget to remove self from pieces
-                                for (move2_dx, move2_dy) in piece.valid_captures(&pieces_without_self) {
-                                    for &(piece2_dx, piece2_dy) in &piece.squares_occupied {
-                                        let new_x2 = piece.x.checked_add_signed(piece2_dx + move2_dx).unwrap();
-                                        let new_y2 = piece.y.checked_add_signed(piece2_dy + move2_dy).unwrap();
-                                        if new_x == new_x2 && new_y == new_y2 {
-                                            continue 'move_loop;
-                                        }
-                                    }
-                                }
+                            if piece.colour == self.colour && piece.occupies_square((new_x, new_y)) {
+                                continue 'move_loop;
                             }
                         }
                     }
