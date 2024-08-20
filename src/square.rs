@@ -84,17 +84,19 @@ fn select_square(
                 			let square_y = square.y.checked_add_signed(dy).expect("y < 0");
 	                        // Check if a piece of the opposite color exists in this square and despawn it
 	                        for (other_entity, other_piece) in &pieces_entity_vec {
-                                if other_piece.occupies_square((square_x, square_y)) {
-	                                // Despawn piece
-                                    consume_writer.send(ConsumeEvent { piece_entity: *other_entity });
-	                                captured_piece = true;
-                                } else if other_piece.can_en_passant && (
-                                    (piece.colour == PieceColour::White && other_piece.occupies_square((square_x, square_y - 1)))
-                                    || (piece.colour == PieceColour::Black && other_piece.occupies_square((square_x, square_y + 1)))
-                                ) {
-                                    // Despawn piece
-                                    consume_writer.send(ConsumeEvent { piece_entity: *other_entity });
-                                    captured_piece = true;
+                                if other_piece.colour == piece.colour.opposite() {
+                                    if other_piece.occupies_square((square_x, square_y)) {
+    	                                // Despawn piece
+                                        consume_writer.send(ConsumeEvent { piece_entity: *other_entity });
+    	                                captured_piece = true;
+                                    } else if other_piece.can_en_passant && (
+                                        (piece.colour == PieceColour::White && other_piece.occupies_square((square_x, square_y - 1)))
+                                        || (piece.colour == PieceColour::Black && other_piece.occupies_square((square_x, square_y + 1)))
+                                    ) {
+                                        // Despawn piece
+                                        consume_writer.send(ConsumeEvent { piece_entity: *other_entity });
+                                        captured_piece = true;
+                                    }
                                 }
 	                        }
 	                    }
