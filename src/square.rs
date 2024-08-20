@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
-use crate::piece::{Piece, PieceColour};
+use crate::piece::{is_colour_in_checkmate, Piece, PieceColour};
+
+#[derive(Event)]
+pub struct CheckmateEvent(pub PieceColour);
 
 #[derive(Default, Resource)]
 pub struct SelectedSquare {
@@ -40,6 +43,7 @@ fn select_square(
     mut turn: ResMut<PlayerTurn>,
     squares_query: Query<(Entity, &Square)>,
     mut pieces_query: Query<(Entity, &mut Piece)>,
+    mut checkmate_writer: EventWriter<CheckmateEvent>,
 ) {
 
     for event in click_event.read() {
@@ -93,6 +97,11 @@ fn select_square(
                             PieceColour::White => PieceColour::Black,
                             PieceColour::Black => PieceColour::White,
                         };
+
+                        let new_pieces_vec = pieces_query.iter().map(|(_, piece)| piece.clone()).collect();
+                        if is_colour_in_checkmate(turn.0, &new_pieces_vec) {
+                            checkmate_writer.send(CheckmateEvent(turn.0));
+                        }
 
                         // deselect square and piece
                         selected_square.entity = None;
@@ -226,6 +235,7 @@ impl Plugin for SquaresPlugin {
         app
             .insert_resource(PlayerTurn::default())
             .add_systems(Startup, setup_squares)
-            .add_systems(Update, (select_square, highlight_selected_squares));
+            .add_systems(Update, (select_square, highlight_selected_squares))
+            .add_event::<CheckmateEvent>();
     }
 }

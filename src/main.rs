@@ -8,7 +8,7 @@ use bevy::time::Stopwatch;
 use bevy_mod_picking::prelude::*;
 use piece::{is_colour_in_checkmate, Piece, PieceColour};
 use core::f32::consts::PI;
-use square::PlayerTurn;
+use square::{CheckmateEvent, PlayerTurn};
 
 
 #[derive(Component)]
@@ -125,15 +125,15 @@ fn swivel_camera(
 
 fn update_game_status(
     mut game_status_text: Query<&mut Text, With<GameStatusText>>,
-    pieces_query: Query<&Piece>,
+    mut checkmate_event: EventReader<CheckmateEvent>,
 ) {
-    let mut text = game_status_text.get_single_mut().unwrap();
-    let pieces = pieces_query.iter().map(|p| p.clone()).collect();
+    for ev in checkmate_event.read() {
+        let mut text = game_status_text.get_single_mut().unwrap();
 
-    if is_colour_in_checkmate(PieceColour::White, &pieces) {
-        text.sections[0].value = "White wins!".to_string();
-    } else if is_colour_in_checkmate(PieceColour::Black, &pieces) {
-        text.sections[0].value = "Black wins!".to_string();
+        match ev.0 {
+            PieceColour::White => { text.sections[0].value = "Black wins!".to_string(); },
+            PieceColour::Black => { text.sections[0].value = "White wins!".to_string(); },
+        }
     }
 }
 
