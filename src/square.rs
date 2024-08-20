@@ -5,6 +5,9 @@ use crate::piece::{is_colour_in_checkmate, Piece, PieceColour};
 #[derive(Event)]
 pub struct CheckmateEvent(pub PieceColour);
 
+#[derive(Event)]
+pub struct ConsumeEvent { pub piece_entity: Entity }
+
 #[derive(Default, Resource)]
 pub struct SelectedSquare {
     pub entity: Option<Entity>,
@@ -44,6 +47,7 @@ fn select_square(
     squares_query: Query<(Entity, &Square)>,
     mut pieces_query: Query<(Entity, &mut Piece)>,
     mut checkmate_writer: EventWriter<CheckmateEvent>,
+    mut consume_writer: EventWriter<ConsumeEvent>,
     asset_server: Res<AssetServer>,
 ) {
 
@@ -78,7 +82,7 @@ fn select_square(
     	                                && other_piece.colour != piece.colour
     	                            {
     	                                // Despawn piece
-    	                                commands.entity(*other_entity).despawn_recursive();
+                                        consume_writer.send(ConsumeEvent { piece_entity: *other_entity });
     	                                captured_piece = true;
     	                            }
                                 }
@@ -242,6 +246,7 @@ impl Plugin for SquaresPlugin {
             .insert_resource(PlayerTurn::default())
             .add_systems(Startup, setup_squares)
             .add_systems(Update, (select_square, highlight_selected_squares))
-            .add_event::<CheckmateEvent>();
+            .add_event::<CheckmateEvent>()
+            .add_event::<ConsumeEvent>();
     }
 }

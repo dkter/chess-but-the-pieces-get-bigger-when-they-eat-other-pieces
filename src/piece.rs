@@ -3,6 +3,8 @@ use bevy_mod_picking::picking_core::Pickable;
 use core::f32::consts::PI;
 use std::collections::HashSet;
 
+use crate::square::ConsumeEvent;
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceColour {
     White,
@@ -670,11 +672,27 @@ fn move_pieces(time: Res<Time>, mut query: Query<(&mut Transform, &Piece)>) {
     }
 }
 
-fn transform_pieces(mut query: Query<(&mut Transform, &Piece)>) {
-    for (mut transform, piece) in query.iter_mut() {
+fn transform_pieces(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut Transform, &Piece)>,
+) {
+    for (entity, mut transform, piece) in query.iter_mut() {
         //transform.scale = piece.transform.scale;
         transform.rotation = piece.transform.rotation;
         //transform.translation = piece.transform.translation;
+        if transform.scale.y <= 0.1 {
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+fn disappear_pieces(
+    mut query: Query<(Entity, &mut Piece)>,
+    mut consume_reader: EventReader<ConsumeEvent>,
+) {
+    for event in consume_reader.read() {
+        let (_, mut piece) = query.get_mut(event.piece_entity).unwrap();
+        piece.transform.scale = Vec3::ZERO;
     }
 }
 
@@ -790,6 +808,6 @@ impl Plugin for PiecesPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, create_pieces)
-            .add_systems(Update, (move_pieces, transform_pieces));
+            .add_systems(Update, (move_pieces, transform_pieces, disappear_pieces));
     }
 }
