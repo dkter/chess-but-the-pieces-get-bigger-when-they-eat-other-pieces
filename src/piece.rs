@@ -131,7 +131,10 @@ fn is_path_empty(begin: (u8, u8), end: (u8, u8), pieces: &Vec<Piece>) -> bool {
 pub fn is_square_defended(pos: (u8, u8), colour: PieceColour, pieces: &Vec<Piece>) -> bool {
     for piece in pieces {
         if piece.colour == colour {
-            for (move_dx, move_dy) in piece.valid_captures(pieces) {
+            let pieces_without_self = pieces.iter()
+                .filter_map(|p| if p != piece { Some(p.clone()) } else { None })
+                .collect();
+            for (move_dx, move_dy) in piece.valid_captures(&pieces_without_self) {
                 for &(piece_dx, piece_dy) in &piece.squares_occupied {
                     let move_x = piece.x.checked_add_signed(piece_dx + move_dx).unwrap();
                     let move_y = piece.y.checked_add_signed(piece_dy + move_dy).unwrap();
