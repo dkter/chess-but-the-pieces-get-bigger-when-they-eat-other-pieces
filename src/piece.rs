@@ -160,6 +160,67 @@ pub fn is_colour_in_check(colour: PieceColour, pieces: &Vec<Piece>) -> bool {
     false
 }
 
+pub fn is_colour_in_checkmate(colour: PieceColour, pieces: &Vec<Piece>) -> bool {
+    for piece in pieces {
+        if piece.colour == colour {
+            let pieces_without_self = pieces.iter()
+                .filter_map(|p| if p != piece { Some(p.clone()) } else { None })
+                .collect();
+
+            for (move_dx, move_dy) in piece.valid_moves(&pieces_without_self) {
+                let new_x = piece.x.checked_add_signed(move_dx).unwrap();
+                let new_y = piece.y.checked_add_signed(move_dy).unwrap();
+                let pieces_after_move = pieces.iter().map(|p| {
+                    if p == piece {
+                        let mut new_piece = p.clone();
+                        new_piece.x = new_x;
+                        new_piece.y = new_y;
+                        new_piece
+                    } else {
+                        p.clone()
+                    }
+                }).collect();
+
+                if !is_colour_in_check(piece.colour, &pieces_after_move) {
+                    return false;
+                }
+            }
+
+            if piece.piece_type != PieceType::Pawn {
+                continue;
+            }
+
+            for (move_dx, move_dy) in piece.valid_captures(&pieces_without_self) {
+                let new_x = piece.x.checked_add_signed(move_dx).unwrap();
+                let new_y = piece.y.checked_add_signed(move_dy).unwrap();
+                let pieces_after_move = pieces.iter().map(|p| {
+                    if p == piece {
+                        let mut new_piece = p.clone();
+                        new_piece.x = new_x;
+                        new_piece.y = new_y;
+                        new_piece
+                    } else {
+                        p.clone()
+                    }
+                }).collect();
+                if !is_colour_in_check(piece.colour, &pieces_after_move) {
+                    // make sure there is actually a piece to capture somewhere
+                    for &(piece_dx, piece_dy) in &piece.squares_occupied {
+                        let new_x = new_x.checked_add_signed(piece_dx).unwrap();
+                        let new_y = new_y.checked_add_signed(piece_dy).unwrap();
+                        for piece in &pieces_without_self {
+                            if piece.colour == piece.colour.opposite() && piece.occupies_square((new_x, new_y)) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    true
+}
+
 impl Piece {
     pub fn occupies_square(&self, square: (u8, u8)) -> bool {
         for &(dx, dy) in &self.squares_occupied {

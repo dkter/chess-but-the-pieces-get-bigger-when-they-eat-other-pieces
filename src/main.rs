@@ -6,7 +6,7 @@ use bevy::pbr::light_consts::lux::OVERCAST_DAY;
 use bevy::prelude::*;
 use bevy::time::Stopwatch;
 use bevy_mod_picking::prelude::*;
-use piece::PieceColour;
+use piece::{is_colour_in_checkmate, Piece, PieceColour};
 use core::f32::consts::PI;
 use square::PlayerTurn;
 
@@ -15,6 +15,10 @@ use square::PlayerTurn;
 struct SwivelDelay {
     time: Stopwatch,
 }
+
+
+#[derive(Component)]
+struct GameStatusText;
 
 
 fn setup(mut commands: Commands) {
@@ -64,6 +68,25 @@ fn setup(mut commands: Commands) {
         color: PURPLE.into(),
         brightness: 20.,
     });
+    // UI
+    commands.spawn(NodeBundle {
+        style: Style {
+            width: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        transform: Transform::from_xyz(0.0, 0.0, 0.0),
+        ..default()
+    }).with_children(|parent| {
+        parent.spawn((
+            TextBundle::from_section(
+                "",
+                TextStyle::default(),
+            ),
+            GameStatusText,
+        ));
+    });
 }
 
 fn swivel_camera(
@@ -100,6 +123,20 @@ fn swivel_camera(
     }
 }
 
+fn update_game_status(
+    mut game_status_text: Query<&mut Text, With<GameStatusText>>,
+    pieces_query: Query<&Piece>,
+) {
+    let mut text = game_status_text.get_single_mut().unwrap();
+    let pieces = pieces_query.iter().map(|p| p.clone()).collect();
+
+    if is_colour_in_checkmate(PieceColour::White, &pieces) {
+        text.sections[0].value = "White wins!".to_string();
+    } else if is_colour_in_checkmate(PieceColour::Black, &pieces) {
+        text.sections[0].value = "Black wins!".to_string();
+    }
+}
+
 fn main() {
     App::new()
         .insert_resource(Msaa::default())
@@ -119,6 +156,6 @@ fn main() {
             square::SquaresPlugin,
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, swivel_camera)
+        .add_systems(Update, (swivel_camera, update_game_status))
         .run();
 }
