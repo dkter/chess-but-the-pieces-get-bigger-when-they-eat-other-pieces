@@ -3,7 +3,7 @@ use bevy_mod_picking::picking_core::Pickable;
 use core::f32::consts::PI;
 use std::collections::HashSet;
 
-use crate::{square::{CastleEvent, ConsumeEvent}, LoadingData};
+use crate::{square::{CastleEvent, ConsumeEvent, MoveEvent}, LoadingData};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PieceColour {
@@ -40,6 +40,8 @@ pub struct Piece {
     pub offset: Vec3,
     pub squares_occupied: HashSet<(i8, i8)>,
     pub has_moved: bool,
+    pub just_moved: bool,
+    pub can_en_passant: bool,
 }
 
 pub fn is_square_occupied(pos: (u8, u8), pieces: &Vec<Piece>) -> bool {
@@ -540,8 +542,15 @@ impl Piece {
                     let new_x = new_x.checked_add_signed(piece_dx).unwrap();
                     let new_y = new_y.checked_add_signed(piece_dy).unwrap();
                     for piece in &pieces_without_self {
-                        if piece.colour == self.colour.opposite() && piece.occupies_square((new_x, new_y)) {
-                            return true;
+                        if piece.colour == self.colour.opposite() {
+                            if piece.occupies_square((new_x, new_y)) {
+                                return true;
+                            } else if piece.can_en_passant && (
+                                (self.colour == PieceColour::White && piece.occupies_square((new_x, new_y - 1)))
+                                || (self.colour == PieceColour::Black && piece.occupies_square((new_x, new_y + 1)))
+                            ) {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -762,6 +771,20 @@ fn castle(
     }
 }
 
+fn disable_en_passant(
+    mut event_reader: EventReader<MoveEvent>,
+    mut query: Query<&mut Piece>,
+) {
+    for _ in event_reader.read() {
+        for mut piece in query.iter_mut() {
+            if !piece.just_moved {
+                piece.can_en_passant = false;
+            }
+            piece.just_moved = false;
+        }
+    }
+}
+
 fn move_pieces(time: Res<Time>, mut query: Query<(&mut Transform, &Piece)>) {
     for (mut transform, piece) in query.iter_mut() {
         let direction = piece.transform.translation - transform.translation;
@@ -821,6 +844,8 @@ fn spawn_piece(
             offset: Vec3::ZERO,
             squares_occupied: HashSet::from([(0, 0)]),
             has_moved: false,
+            just_moved: false,
+            can_en_passant: false,
         },
         Pickable::IGNORE,
     )).with_children(|parent| {
@@ -922,6 +947,7 @@ impl Plugin for PiecesPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, create_pieces)
-            .add_systems(Update, (move_pieces, transform_pieces, disappear_pieces, promote_pawns, castle));
+            .add_systems(Update, (move_pieces, transform_pieces, disappear_pieces, promote_pawns,
+                    castle, disable_en_passant));
     }
 }

@@ -8,6 +8,9 @@ pub struct CheckmateEvent(pub PieceColour);
 #[derive(Event)]
 pub struct ConsumeEvent { pub piece_entity: Entity }
 
+#[derive(Event)]
+pub struct MoveEvent;
+
 #[derive(Default, Resource)]
 pub struct SelectedSquare {
     pub entity: Option<Entity>,
@@ -52,6 +55,7 @@ fn select_square(
     mut checkmate_writer: EventWriter<CheckmateEvent>,
     mut consume_writer: EventWriter<ConsumeEvent>,
     mut castle_writer: EventWriter<CastleEvent>,
+    mut move_writer: EventWriter<MoveEvent>,
     asset_server: Res<AssetServer>,
 ) {
 
@@ -80,15 +84,17 @@ fn select_square(
                 			let square_y = square.y.checked_add_signed(dy).expect("y < 0");
 	                        // Check if a piece of the opposite color exists in this square and despawn it
 	                        for (other_entity, other_piece) in &pieces_entity_vec {
-                                for (dx2, dy2) in &other_piece.squares_occupied {
-    	                            if other_piece.x.checked_add_signed(*dx2).expect("x < 0") == square_x
-    	                                && other_piece.y.checked_add_signed(*dy2).expect("y < 0") == square_y
-    	                                && other_piece.colour != piece.colour
-    	                            {
-    	                                // Despawn piece
-                                        consume_writer.send(ConsumeEvent { piece_entity: *other_entity });
-    	                                captured_piece = true;
-    	                            }
+                                if other_piece.occupies_square((square_x, square_y)) {
+	                                // Despawn piece
+                                    consume_writer.send(ConsumeEvent { piece_entity: *other_entity });
+	                                captured_piece = true;
+                                } else if other_piece.can_en_passant && (
+                                    (piece.colour == PieceColour::White && other_piece.occupies_square((square_x, square_y - 1)))
+                                    || (piece.colour == PieceColour::Black && other_piece.occupies_square((square_x, square_y + 1)))
+                                ) {
+                                    // Despawn piece
+                                    consume_writer.send(ConsumeEvent { piece_entity: *other_entity });
+                                    captured_piece = true;
                                 }
 	                        }
 	                    }
@@ -106,10 +112,16 @@ fn select_square(
                             }
                         }
 
+                        // check if move is a pawn 2 move
+                        if piece.piece_type == PieceType::Pawn && piece.y.abs_diff(square.y) == 2 {
+                            piece.can_en_passant = true;
+                        }
+
                         // move piece
 	                    piece.x = square.x;
 	                    piece.y = square.y;
                         piece.has_moved = true;
+                        piece.just_moved = true;
 
 	                    // switch turns
 	                    turn.0 = match turn.0 {
@@ -126,6 +138,8 @@ fn select_square(
                             source: asset_server.load("audio/click.wav"),
                             ..default()
                         });
+                        
+                        move_writer.send(MoveEvent);
 
                         // deselect square and piece
                         selected_square.entity = None;
@@ -262,6 +276,7 @@ impl Plugin for SquaresPlugin {
             .add_systems(Update, (select_square, highlight_selected_squares))
             .add_event::<CheckmateEvent>()
             .add_event::<CastleEvent>()
+            .add_event::<MoveEvent>()
             .add_event::<ConsumeEvent>();
     }
 }
