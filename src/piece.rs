@@ -140,9 +140,9 @@ pub fn is_square_defended(pos: (u8, u8), colour: PieceColour, pieces: &Vec<Piece
                 .collect();
             for (move_dx, move_dy) in piece.valid_captures(&pieces_without_self) {
                 for &(piece_dx, piece_dy) in &piece.squares_occupied {
-                    let move_x = piece.x.checked_add_signed(piece_dx + move_dx).unwrap();
-                    let move_y = piece.y.checked_add_signed(piece_dy + move_dy).unwrap();
-                    if (move_x, move_y) == pos {
+                    let move_x = piece.x.checked_add_signed(piece_dx + move_dx);
+                    let move_y = piece.y.checked_add_signed(piece_dy + move_dy);
+                    if (move_x, move_y) == (Some(pos.0), Some(pos.1)) {
                         return true;
                     }
                 }
